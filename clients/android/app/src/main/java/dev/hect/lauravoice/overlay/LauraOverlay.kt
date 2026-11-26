@@ -68,6 +68,7 @@ import kotlin.math.roundToInt
  *
  * Invoked from outside the app (side key, assist gesture, shortcut) she animates in even when the floating bubble
  * is switched off, and goes away again after the turn (see [Invocation]); a fling sends her away early.
+ * A turn started from the home screen widget keeps her off screen (bubble setting or not): the widget shows her.
  */
 class LauraOverlay(private val ctx: Context) {
     private val engine = App.engine
@@ -119,8 +120,11 @@ class LauraOverlay(private val ctx: Context) {
         })
         ctx.registerComponentCallbacks(configCallbacks)
         scope.launch {
-            combine(engine.ui.map { it.active }.distinctUntilChanged(), App.visible, permTick, Invocation.presenting, Invocation.leaving) { active, visible, _, invoked, leaving ->
-                active && !visible && ((prefs.enabled && !leaving) || invoked) && Settings.canDrawOverlays(ctx)
+            combine(
+                combine(engine.ui.map { it.active }.distinctUntilChanged(), App.visible, permTick) { active, visible, _ -> active && !visible },
+                Invocation.presenting, Invocation.leaving, Invocation.byWidget,
+            ) { free, invoked, leaving, widget ->
+                free && wanted(prefs.enabled, invoked, leaving, widget) && Settings.canDrawOverlays(ctx)
             }.distinctUntilChanged().collect { setShown(it, animate = true) }
         }
         scope.launch {
@@ -609,6 +613,10 @@ class LauraOverlay(private val ctx: Context) {
         const val FLING_DP_S = 1400f
 
         fun permitted(ctx: Context) = Settings.canDrawOverlays(ctx)
+
+        /** With her on and the app not on screen: whether the bubble floats. */
+        fun wanted(bubbleOn: Boolean, invoked: Boolean, leaving: Boolean, byWidget: Boolean): Boolean =
+            !(invoked && byWidget) && ((bubbleOn && !leaving) || invoked)
     }
 }
 

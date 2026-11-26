@@ -175,7 +175,7 @@ private fun faceRes(style: String, face: String): Int = when (style) {
     }
 }
 
-private fun talk(ctx: Context): Action = actionStartActivity(Invocation.intent(ctx, "widget"))
+private fun talk(ctx: Context): Action = actionStartActivity(Invocation.intent(ctx, Invocation.SOURCE_WIDGET))
 private fun open(ctx: Context): Action =
     actionStartActivity(Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
 

@@ -49,6 +49,7 @@ import kotlin.math.roundToInt
  * Unlocked with "Display over other apps": starts her and gets out of the way at once; the floating overlay
  * animates in over whatever app is open. Locked (overlays don't show over the keyguard) or without the overlay
  * permission: shows her itself as a small panel at the bottom, over the lock screen too, until she leaves.
+ * From the home screen widget (unlocked) neither shows: the widget is her face for that turn.
  */
 class InvokeActivity : Activity() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -85,7 +86,7 @@ class InvokeActivity : Activity() {
         }
         if (!App.store.load().configured) return needsSetup("Set up Laura's server first.")
         Invocation.summon(this, source)
-        if (needsPanel()) {
+        if (needsPanel(source)) {
             if (panel == null) showPanel() else greet()
         } else if (panel == null) {
             // the overlay takes it from here; stay a moment so the service starts while we are in front
@@ -93,9 +94,9 @@ class InvokeActivity : Activity() {
         }
     }
 
-    private fun needsPanel(): Boolean = getSystemService(KeyguardManager::class.java).isKeyguardLocked ||
+    private fun needsPanel(source: String): Boolean = getSystemService(KeyguardManager::class.java).isKeyguardLocked ||
         !getSystemService(PowerManager::class.java).isInteractive ||
-        !LauraOverlay.permitted(this)
+        (!LauraOverlay.permitted(this) && source != Invocation.SOURCE_WIDGET)
 
     private fun needsSetup(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show()

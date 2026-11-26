@@ -22,10 +22,17 @@ import java.lang.ref.WeakReference
  * While [presenting], the floating overlay (or the activity's own panel on the lock screen) shows her. She goes
  * away once the turn is over and things are quiet, or when flung away. If the invocation is what turned her on,
  * the microphone service stops with her, so nothing keeps listening afterwards.
+ *
+ * Talk on the home screen widget is the exception: the widget already shows her state and reply, so while a turn
+ * started there is presenting ([byWidget]), no floating head is shown. Android gives no permission-free way to know
+ * whether the widget is still on screen (which app is in front needs usage access, which Laura doesn't hold), so the
+ * source of the turn decides: widget turns never show the overlay, side key / assist / lock screen turns always do.
+ * Opening Laura's own app still ends the presentation as usual.
  */
 object Invocation {
     const val ACTION = "dev.hect.lauravoice.INVOKE"
     const val EXTRA_SOURCE = "source"
+    const val SOURCE_WIDGET = "widget"
     private const val TAG = "LauraInvoke"
     /** Nothing said or heard for this long after an invocation: she leaves. */
     private const val LISTEN_MS = 12_000L
@@ -40,6 +47,9 @@ object Invocation {
     private val _summons = MutableStateFlow(0L)
     /** Time (elapsedRealtime) of the latest invocation, for the entrance animation. */
     val summons: StateFlow<Long> = _summons
+    private val _byWidget = MutableStateFlow(false)
+    /** The turn being presented was started from the home screen widget, which shows her itself. */
+    val byWidget: StateFlow<Boolean> = _byWidget
 
     /** The service was started by an invocation: stop it (and release the mic) when she leaves. */
     @Volatile private var ephemeral = false
@@ -97,6 +107,7 @@ object Invocation {
         engine.summon()
         val now = SystemClock.elapsedRealtime()
         _summons.value = now
+        _byWidget.value = source == SOURCE_WIDGET
         _presenting.value = true
         turnSeen = false
         lastBusy = now
@@ -111,6 +122,7 @@ object Invocation {
         Log.i(TAG, "leaving: $reason (ephemeral=$ephemeral)")
         if (ephemeral) _leaving.value = true
         _presenting.value = false
+        _byWidget.value = false
         if (ephemeral) main.postDelayed({
             val ctx = appCtx
             if (!_presenting.value && ephemeral && ctx != null) {
@@ -131,6 +143,7 @@ object Invocation {
         ephemeral = false
         main.removeCallbacks(tick)
         _presenting.value = false
+        _byWidget.value = false
         endSession()
     }
 
