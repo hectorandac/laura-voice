@@ -55,6 +55,31 @@ object Invocation {
     fun intent(ctx: Context, source: String): Intent =
         Intent(ctx, InvokeActivity::class.java).setAction(ACTION).putExtra(EXTRA_SOURCE, source)
 
+    private const val PREF_ASSIST_AT = "assist_invoked_at"
+
+    /** She was called through the assistant path (side key hold, assist gesture, lock screen shortcut). */
+    fun markAssist(ctx: Context) = ctx.getSharedPreferences("laura", Context.MODE_PRIVATE).edit()
+        .putLong(PREF_ASSIST_AT, System.currentTimeMillis()).apply()
+
+    /**
+     * Side key status: true = she's the assistant and the side key hold opens the assistant, false = she's the
+     * assistant but that isn't confirmed yet, null = she isn't the assistant (which also forgets the last call).
+     * One UI 7 keeps "Press and hold" in Settings.Global function_key_config_longpress_selected_item
+     * (long_press_ai_agent_app = Digital assistant app); when that can't be read, a past assist call stands in.
+     */
+    fun sideKeyWorking(ctx: Context, assistant: Boolean): Boolean? {
+        val p = ctx.getSharedPreferences("laura", Context.MODE_PRIVATE)
+        if (!assistant) {
+            p.edit().remove(PREF_ASSIST_AT).apply()
+            return null
+        }
+        val longPress = runCatching {
+            android.provider.Settings.Global.getString(ctx.contentResolver, "function_key_config_longpress_selected_item")
+        }.getOrNull()
+        if (longPress != null) return longPress == "long_press_ai_agent_app"
+        return p.getLong(PREF_ASSIST_AT, 0L) > 0L
+    }
+
     /** "Try it" in settings and anything else inside the app. */
     fun launch(ctx: Context, source: String) =
         ctx.startActivity(intent(ctx, source).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

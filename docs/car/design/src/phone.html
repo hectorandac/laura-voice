@@ -1,0 +1,32 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Phone agent</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+body { display: flex; flex-direction: column; padding: 56px 20px 28px; gap: 0; }
+.eyebrow { font-size: 13px; font-weight: 500; letter-spacing: .4px; color: var(--ink-subtle); text-transform: uppercase; }
+.top { display: flex; justify-content: space-between; align-items: center; }
+.top .pill { border: 1px solid var(--hairline); background: var(--surface-1); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--ink-muted); }
+.hero { display: flex; flex-direction: column; align-items: center; margin-top: 44px; gap: 18px; }
+.ring { padding: 6px; border-radius: 50%; background: conic-gradient(from 200deg, rgba(255,217,168,.0), rgba(255,217,168,.55), rgba(255,217,168,.0)); }
+.ring .portrait { width: 188px; height: 188px; border: 4px solid var(--canvas); }
+h1 { font-size: 44px; font-weight: 600; letter-spacing: -1.2px; line-height: 1; }
+.state { font-size: 18px; color: var(--ink-muted); display: flex; gap: 10px; align-items: center; }
+.cap { margin-top: auto; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+.cap .you { font-size: 17px; line-height: 1.45; color: var(--ink-subtle); }
+.cap hr { border: 0; border-top: 1px solid var(--hairline); }
+.cap .her { font-size: 24px; line-height: 1.35; letter-spacing: -.3px; color: var(--ink); font-weight: 500; }
+.acts { display: flex; gap: 12px; margin-top: 16px; }
+.b { flex: 1; height: 56px; border-radius: 12px; display: grid; place-items: center; font-size: 16px; font-weight: 500; background: var(--surface-2); border: 1px solid var(--hairline); color: var(--ink); }
+.b.end { background: var(--end); border-color: transparent; color: #fff; }
+</style></head>
+<body>
+  <div class="top"><span class="eyebrow">Car call</span><span class="pill"><span class="dot speak"></span>&nbsp; 12:04</span></div>
+  <div class="hero"><div class="ring"><div class="portrait"></div></div><h1>Laura</h1>
+    <div class="state"><span class="dot speak"></span>Speaking</div></div>
+  <div class="cap">
+    <div><div class="eyebrow">You</div><div class="you">잠실까지 얼마나 걸려?</div></div>
+    <hr>
+    <div><div class="eyebrow">Laura</div><div class="her">25분 정도요. 올림픽대로가 한산해서 10시 10분쯤 도착할 거예요.</div></div>
+  </div>
+  <div class="acts"><div class="b">Mute</div><div class="b end">End call</div></div>
+</body></html>

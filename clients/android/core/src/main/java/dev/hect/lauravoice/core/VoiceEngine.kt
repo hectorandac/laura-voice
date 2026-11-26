@@ -230,6 +230,22 @@ class VoiceEngine(
         render()
     }
 
+    /**
+     * Handles app commands said to Laura ("open settings", see [VoiceCommands]); returns true when it did, and the
+     * gateway's spoken answer to that turn is then dropped. Null (the watch) answers them like anything else.
+     */
+    @Volatile var onCommand: ((String) -> Boolean)? = null
+
+    private fun command(m: ServerMsg.UserTurn) {
+        val handler = onCommand ?: return
+        val cmd = VoiceCommands.match(m.text) ?: return
+        if (!handler(cmd)) return
+        Log.i(TAG, "command $cmd: ${m.text}")
+        player.fadeStop(m.turnId)
+        transport?.send(Protocol.interrupt(m.turnId, 0))
+        _avatar.tryEmit(AvatarEvent("reaction", "nod"))
+    }
+
     /** Stops the current reply (tap on the orb, notification action). */
     fun stopReply() {
         if (player.isPlaying() || serverState == "speaking") bargeIn()
@@ -410,6 +426,7 @@ class VoiceEngine(
                 addLine(Line("user", m.text, m.turnId))
                 _ui.update { it.copy(partial = "") }
                 net.turnStarted()
+                command(m)
             }
             is ServerMsg.AssistantDelta -> appendAssistant(m.turnId, m.text, false, m.source)
             is ServerMsg.AssistantDone -> appendAssistant(m.turnId, m.text, true, m.source)
@@ -495,7 +512,7 @@ class VoiceEngine(
     // ---- routing and capture ----
 
     private fun reroute(force: Boolean = false) {
-        val d = Routing.decide(cfg.route, cfg.car, audio.outputs(), watch)
+        val d = Routing.decide(cfg.route, cfg.car, audio.outputs(), watch, cfg.carCall)
         if (!force && d == decision && capture != null) return
         val changed = d.route != decision.route || force
         decision = d

@@ -65,13 +65,26 @@ the avatar (horizontal = yaw with fling, vertical = pitch within ±35°; it ease
 mutes/unmutes in hands-free mode, stops a reply while she speaks, and retries or opens settings when something is
 wrong; in push-to-talk mode holding still for 150 ms talks.
 
-Opening the app turns Laura on (the first time it asks for the microphone; with no server set it opens Settings).
-Settings: long-press the avatar (hands-free) or tap/swipe up the faint bar at the bottom. Sections: Connection
-(scan a setup QR code or paste URL, key, pin; Save & connect), Voice & language (hands-free or push-to-talk,
-language, voice enrollment), Car (Automatic, Always on, Off), Watch (reply volume), Invocation (floating Laura and
-how she is called up), About. Tapping the version seven times shows Developer: audio route, codec, live stats,
-turn off/reconnect, send settings to the watch and the conversation log. Everything but the connection fields
-applies immediately. The notification has Mute, Stop reply and Turn off. Mute stops sending audio and also tells
+Opening the app turns Laura on (the first time it asks for the microphone; with no server set it opens Settings on
+a welcome card: scan the setup QR code or enter the server by hand).
+
+Settings slide up over the avatar as a sheet. Ways in: the small round button at the bottom right of the avatar
+screen, a swipe up from the bottom edge, a long-press on the avatar (hands-free), the launcher icon's "Settings"
+shortcut (long-press the icon), tapping a problem in the status label, and saying "Laura, open settings" /
+"로라, 설정 열어줘". The voice command is matched on the phone (`core/VoiceCommands`, whole short utterances only, so
+"what are the best camera settings" is still answered): the app opens settings, drops the gateway's reply to that
+turn with an `interrupt` and nods. From another app this needs "Display over other apps" (Android only lets an app
+with it start an activity from the background); without it she just answers the turn. On the first three visits a
+hint next to the button explains all of this, until settings has been opened once.
+
+The home page holds what changes day to day and one row per rarer area, each its own page: a status card (connection,
+Laura link, host; opens Server: scan QR or paste URL, key, pin; Save & connect), Conversation (hands-free or
+push-to-talk, language), Your voice (enrollment), Car (Automatic, Always on, Off; car Bluetooth; Android Auto
+animation), Watch (reply volume), Call her from anywhere (invocation setup and floating Laura) and About. Tapping the
+version seven times shows Developer on the About page: audio route, codec, live stats, turn off/reconnect, send
+settings to the watch and the conversation log. Settings follow the system light/dark theme (the avatar screen stays
+dark); the design, stills and emulator screenshots are in `docs/app/settings-design/`. Everything but the connection
+fields applies immediately. The notification has Mute, Stop reply and Turn off. Mute stops sending audio and also tells
 the gateway (`mute`). The app also handles the gate and Laura additions from the protocol: `interrupted` stops that
 reply, `ignored` offers "For Laura" (on screen and as a notification action) for 60 s, which sends `recall`, task
 cards can be cancelled, and approval requests get a card whose buttons are the only way an `approval_response` is
@@ -103,6 +116,10 @@ keys are dropped (and the downloaded model in `files/wake` deleted), and the old
 - **No wake word:** hands-free streams every voiced moment through the speech gate and the gateway's addressee
   gate decides whether you were talking to her. An invocation (side key, assist gesture) sends the protocol's
   `wake` message with the next utterance, so that turn counts as addressed.
+- **Side button status (One UI):** the side key setting lives in Samsung's private settings, so Settings →
+  Invocation infers it: green once she's the digital assistant and has been called through the assistant path
+  (assistant session or `ACTION_ASSIST`, time kept in the `assist_invoked_at` pref), amber while she's the assistant
+  but hasn't been yet, and the setup hint while she isn't (losing the role clears the time).
 - **Who's answering:** the reply's `source` ("Local · Bonsai 9B" or "Claude Sonnet 5.5 · via Hermes") shows in the
   label under the avatar when she starts speaking, and on each reply in the developer conversation log.
 - **Network:** OkHttp WebSocket, 15 s pings, reconnect with jittered backoff (0.5 s to 10 s), immediate retry when
@@ -124,6 +141,32 @@ keys are dropped (and the downloaded model in `files/wake` deleted), and the old
   notifications" defaults to Smart pop-up view). On Samsung, set Laura's battery use to Unrestricted, and the
   default left edge keeps the bubble clear of the right-hand Edge panel handle.
 
+### Home screen widget (`app/.../widget/`)
+
+- **One widget, two picker entries:** "Laura" (4x2) and "Talk to Laura" (2x1) are the same Glance widget with other
+  default sizes; it resizes from 1x1 to 4x3+ and the layout follows the real size (`SizeMode.Exact`): 1x1 her face with
+  a state dot, 2x1 face + state, 2x2 state + face + Talk, 4x2 adds who is answering with Mute and Open, 4x3 adds her
+  last reply in a card with a source chip (Local / Claude) and its time. Talk (and a tap on her face) starts
+  `InvokeActivity`, the same path as the side key, so it turns her on for one turn and the floating overlay shows her;
+  Mute is an action callback on the running engine (only shown while she is on); the reply card and Open go to the app.
+- **States are stills of the real model:** `res/drawable-nodpi/widget_face_*.webp` (idle, listening, thinking,
+  speaking, sleeping for off and muted, offline, error), rendered with the avatar workbench at yaw 15°, pitch 4°,
+  `crop(0.3, -0.25, 7.5)`, `bg=transparent` (the overlay theme with its outline), 512 px downscaled to 384. Face styles:
+  Live (these), Tile (the Android Auto stills on their dark render background) and Icon (the launcher face, static).
+- **Pushed, never polled:** `WidgetSync` (started from `App.onCreate`) reduces `VoiceEngine.ui` to what a widget shows
+  (`WidgetModel`: state, second line, last reply; no mic level or stats), and publishes a change at most every 300 ms
+  for a state change, 1.5 s while only the reply text grows, and 5 s with the screen off (the last state always
+  lands). `updatePeriodMillis` is 0, and with no widget placed nothing is sent. The last reply is kept in prefs so it
+  survives the process, and its text only while some widget shows it.
+- **Configure** (`WidgetConfigActivity`, optional on placing, "Widget settings" later): theme Auto / Light / Dark, face
+  style, face only, last reply on/off, hide reply text (keeps who answered). A widget on a lock screen host
+  (`WIDGET_CATEGORY_KEYGUARD`) never shows reply text. The preview is the widget itself, composed by Glance at the
+  widget's own size.
+- **Design:** `docs/app/widget-design/` (stills rendered from `src/widgets.html` with `src/render.sh`, Raycast-style chrome
+  in the icon's plum / wine / apricot, light and dark) and `emu-*.png` from the emulator. Debug builds take
+  `adb shell am broadcast -a dev.hect.lauravoice.WIDGET_DEMO --es state speaking --es reply "..." --es source "..."`
+  to show a state without a gateway (`--es state live` returns to the engine).
+
 ### Car (`app/.../car/`)
 
 - **Car mode is detected, not guessed:** on while Android Auto is connected (`androidx.car.app` `CarConnection`), and
@@ -131,19 +174,42 @@ keys are dropped (and the downloaded model in `files/wake` deleted), and the old
   permission). No activity recognition. `core/CarState.active` is what the engine, avatar and gateway
   (`context.car`) see; Settings → Car → Always on / Off sets `CarState.manualOverride`, Automatic clears it. Off
   again when Android Auto disconnects.
-- **Android Auto only runs template and media apps**; no app can draw its own view or a floating head on the car
-  screen. Laura shows up as a media source instead: her icon as artwork, what she's doing as the subtitle, her last
-  reply as the description. Play = talk (turns her on if Android allows it from the car, otherwise asks you to
-  open the app once; unmutes), pause = stop the reply, plus Mute and Turn off buttons. The session only reports
-  playing while she speaks, so picking another media app doesn't mute her.
-- **Guidance and focus:** replies take transient-may-duck focus (music ducks, podcasts pause, both get it back
+- **Car call (default, Settings → Car → Car call):** in the car Laura is a call. `car/LauraCall` places a
+  self-managed Telecom call named "Laura" through Core-Telecom (`CallsManager`, outgoing, set active by the app
+  itself, so nothing rings) while car mode is on and she is on; car mode coming on turns her on. Telecom then owns
+  the audio: MODE_IN_COMMUNICATION, the car's hands-free (Bluetooth) as the call device, and the call's audio focus,
+  which refuses every other app's focus request while the call is up (so navigation prompts that ask for focus and
+  music wait). Her mic is the VOICE_COMMUNICATION source and her replies USAGE_VOICE_COMMUNICATION (`Routing`:
+  "car call"); `AndroidAudio` leaves the mode, device and focus alone during the call. Android Auto shows its own
+  call screen with the name and her picture (call icon extension, `car_avatar.png` via a FileProvider). The car's
+  mute button mutes her, hold (a real phone call) stops and mutes her until it's resumed, hang up (car, Android
+  Auto, notification) turns her off; leaving the car ends the call and turns her off again if the call turned her
+  on. VoiceService adds the phoneCall foreground type and shows a CallStyle notification during the call. Turning
+  her on from the background needs Android's exemptions: battery optimisation off for Laura, and Laura as the
+  default digital assistant (the microphone may only be started from the background by the VoiceInteractionService
+  app); without them, open Laura on the phone once.
+- **Car screen** (`car/LauraCarAppService`, calling category): a PaneTemplate with two fixed rows, "You" (what he
+  said, live) and "Laura" (her reply, or her state), a state glyph (lavender mic listening, apricot wave speaking,
+  dots thinking), her round portrait, and Call Laura / Hang up + Mute. Row titles never change, so updates are
+  template refreshes (no step quota); at most one a second. Android Auto puts its call screen over it while the
+  call is up. Design and stills: `docs/car/design/`.
+- **Media fallback** (car call off): Laura as a media source, one static picture of her as artwork, what she's
+  doing as the subtitle, her last reply as the description. Play = talk (turns her on if Android allows it from
+  the car, otherwise asks you to open the app once; unmutes), pause = stop the reply, plus Mute and Turn off. The
+  session only reports playing while she speaks, and steps aside during a car call. The browse root is a "Laura"
+  tab with "Talk to Laura" inside (Android Auto only shows browsable items at the root, `core/CarBrowse`); it
+  answers Android Auto, Assistant, system apps and media controllers whether or not car mode is on, and the
+  session is only active in car mode, so it never takes headset play/pause outside the car.
+- **Guidance and focus (media fallback):** replies take transient-may-duck focus (music ducks, podcasts pause, both get it back
   when she finishes). Navigation prompts make her quieter (-9 dB) instead of pausing her; an exclusive transient
   request (another assistant, the car's own prompt) -16 dB; a phone call stops the reply. Under Android Auto her
   replies use the media usage, which Android Auto projects to the car's media channel.
 - **Debug builds in the car:** Android Auto hides apps not installed from Play until you allow it yourself, once:
   Settings → Connected devices → Android Auto → scroll to Version → tap "Version and permission info" 10 times →
-  OK; then ⋮ → Developer settings → Unknown sources on. Then Android Auto settings → Customize launcher → make
-  sure Laura is ticked. Reconnect the car.
+  OK; then ⋮ → Developer settings → Unknown sources on. Android Auto can keep its earlier verdict until it restarts: App
+  info for Android Auto → Force stop, then open Android Auto settings → Customize launcher → make sure Laura is
+  ticked. Reconnect the car. `adb logcat | grep -E 'CAR.VALIDATOR|LauraMedia|LauraCall|Telecom'` shows whether Android Auto allowed
+  the package and whether it got a browse root.
 
 ## Wear OS (`wear/`)
 
@@ -220,7 +286,7 @@ later (a wake word or local VAD on the GPU). The real gaps are hardware:
 | Linux client against `web/mock_server.py` (PCM) and an Opus stand-in | Verified |
 | Linux client: bad key → exits 2, wrong pin → exits 3, no pin with self-signed cert → retries | Verified |
 | Linux unit tests (gate, Opus round trip, URL) on Python 3.6 and 3.12 | Pass |
-| Android `:core` unit tests (config/QR parsing, protocol incl. gate/task/approval messages, gate, routing, relay framing, Opus header) | Pass (15) |
+| Android `:core` unit tests (config/QR parsing, protocol incl. gate/task/approval messages, gate, routing, relay framing, Opus header, voice commands) | Pass |
 | MediaCodec Opus encode → decode round trip on an Android 15 emulator (same `c2.android.opus` codecs as the S21) | Pass |
 | Full `VoiceEngine` on the emulator (WAV as mic) against an Opus gateway stand-in over pinned TLS: speech gate, Opus up, reply decoded (1.5 s of 1.5 s) | Pass (`:core:connectedDebugAndroidTest`, `LiveGatewayTest` with `-e url/key/pin`) |
 | Phone app on the Galaxy S21 (Android 15): connects with the pinned cert, gateway logs `audio up=opus down=opus` | Verified |

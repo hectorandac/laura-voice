@@ -130,6 +130,13 @@ class RoutingTest {
         assertEquals(Route.CALL, Routing.decide("call", true, speaker).route)
         assertFalse(Routing.decide("call", false, speaker, watch = true).fullDuplex)
     }
+
+    @Test fun carCallWinsOverCarAndMediaSetting() {
+        val car = setOf(AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO)
+        assertEquals(RouteDecision(Route.CALL, true, "car call"), Routing.decide("auto", true, car, carCall = true))
+        assertEquals(Route.CALL, Routing.decide("media", true, car, carCall = true).route)
+        assertEquals(Route.MEDIA, Routing.decide("auto", true, car, carCall = false).route)
+    }
 }
 
 class RelayFramesTest {

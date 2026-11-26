@@ -2,6 +2,8 @@
 <resources>
     <string name="invoke_short">Talk to Laura</string>
     <string name="invoke_long">Talk to Laura</string>
+    <string name="settings_short">Settings</string>
+    <string name="settings_long">Laura settings</string>
 
     <style name="Laura.Invoke" parent="@android:style/Theme.Translucent.NoTitleBar">
         <item name="android:windowAnimationStyle">@null</item>

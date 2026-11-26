@@ -35,6 +35,12 @@ abstract class VoiceServiceBase : Service() {
     abstract val engine: VoiceEngine
     abstract val activityClass: Class<*>
 
+    /** Foreground service types right now (a subclass adds phoneCall during a car call). */
+    protected open fun foregroundTypes(): Int = ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+
+    /** Replaces the standard notification while it returns non-null (a car call's CallStyle notification). */
+    protected open fun overrideNotification(): Notification? = null
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var wake: PowerManager.WakeLock? = null
     private var started = false
@@ -63,10 +69,10 @@ abstract class VoiceServiceBase : Service() {
         getSystemService(AudioManager::class.java).registerAudioDeviceCallback(deviceCallback, null)
         scope.launch {
             engine.ui.map { listOf(it.conn, it.view, it.muted, it.lastIgnored?.turnId, it.onWatch) }.distinctUntilChanged().collect {
-                if (started) nm.notify(NOTIFICATION_ID, notification())
+                if (started) nm.notify(NOTIFICATION_ID, current())
                 if (it[3] != null) launch {
                     delay(RECALL_MS + 500)
-                    if (started) nm.notify(NOTIFICATION_ID, notification())
+                    if (started) nm.notify(NOTIFICATION_ID, current())
                 }
             }
         }
@@ -85,7 +91,7 @@ abstract class VoiceServiceBase : Service() {
             ACTION_RECONNECT -> engine.reconnect()
         }
         if (!started) {
-            ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, current(), foregroundTypes())
             started = true
             wake = getSystemService(PowerManager::class.java)
                 .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "laura:voice").apply { acquire() }
@@ -101,6 +107,15 @@ abstract class VoiceServiceBase : Service() {
         getSystemService(AudioManager::class.java).unregisterAudioDeviceCallback(deviceCallback)
         scope.cancel()
         super.onDestroy()
+    }
+
+    private fun current(): Notification = overrideNotification() ?: notification()
+
+    /** Re-promotes with the current types and notification (after [foregroundTypes] or [overrideNotification] change). */
+    protected fun promote() {
+        if (!started) return
+        runCatching { ServiceCompat.startForeground(this, NOTIFICATION_ID, current(), foregroundTypes()) }
+            .onFailure { android.util.Log.w("VoiceService", "can't change the foreground service", it) }
     }
 
     private fun action(action: String, req: Int): PendingIntent = PendingIntent.getService(

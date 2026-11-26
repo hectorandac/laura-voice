@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- soft apricot glow behind her face on dark surfaces -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:type="radial"
+        android:gradientRadius="50%"
+        android:startColor="#33FFC98F"
+        android:centerColor="#1AFFC98F"
+        android:endColor="#00FFC98F" />
+</shape>

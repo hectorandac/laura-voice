@@ -3,8 +3,9 @@
 1. conversation window: a follow-up shortly after a reply needs no trigger;
 2. the assistant's name anywhere in the transcript (Korean/English spellings and common ASR misspellings);
 3. otherwise a one-token yes/no from the local LLM, with a threshold that depends on context
-   (others around -> name required; alone in the car -> permissive). When unsure, stay silent.
-Plus spoken mute / resume commands.
+   (others around -> name required). When unsure, stay silent.
+In the car (context.car) the gate always lets the turn through and the reply model decides whether to talk
+(car_mode.py). Plus spoken mute / resume commands, which work everywhere.
 """
 import re
 import time
@@ -197,7 +198,7 @@ class Gate:
     """Per-session addressee state and the decision."""
 
     WINDOW_S = 20.0
-    THRESH = {"default": 0.6, "car_alone": 0.4, "window": 0.25}
+    THRESH = {"default": 0.6, "window": 0.25}
 
     def __init__(self, classifier: AddresseeClassifier | None):
         self.classifier = classifier
@@ -212,10 +213,11 @@ class Gate:
         return (now or time.time()) <= self.reply_end + self.WINDOW_S
 
     async def decide(self, text, context=None, others_present=False, started=None):
-        """-> (addressed, info). info["why"]: name | greeting | window | classifier | resume | muted |
+        """-> (addressed, info). info["why"]: name | car | greeting | window | classifier | resume | muted |
         not_addressed | other_person | others_present | classifier_error.
-        The name always counts. Talking to someone else (pet names, family terms, another name, someone arriving)
-        never does. Inside the follow-up window the classifier still runs but only a clear "no" (p < 0.25)
+        In the car every turn is let through (why "car"; only mute holds her back) and the reply model decides
+        whether to talk, so there is no window to expire and nothing to recall. The name always counts. Talking
+        to someone else (pet names, family terms, another name, someone arriving) never does. Inside the follow-up window the classifier still runs but only a clear "no" (p < 0.25)
         rejects; with others around, outside the window only the name counts."""
         context = context or {}
         now = time.time()
@@ -231,6 +233,8 @@ class Gate:
             return False, {**info, "why": "muted"}
         if info["name"]:
             return True, {**info, "why": "name"}
+        if context.get("car"):
+            return True, {**info, "why": "car"}
         if talks_to_someone_else(text):
             return False, {**info, "why": "other_person"}
         others = others_present or bool(context.get("others_present"))
@@ -240,10 +244,7 @@ class Gate:
             return False, {**info, "why": "others_present"}
         if not self.classifier:
             return info["window"], {**info, "why": "window" if info["window"] else "not_addressed"}
-        if info["window"] and not others:
-            th = self.THRESH["window"]
-        else:
-            th = self.THRESH["car_alone" if context.get("car") and not others else "default"]
+        th = self.THRESH["window" if info["window"] and not others else "default"]
         ago = now - self.reply_end
         try:
             p, ms = await self.classifier.p_addressed(text, self.last_reply if ago < 60 else None, max(ago, 0))

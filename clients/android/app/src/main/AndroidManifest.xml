@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Car call: Laura as a self-managed Telecom call (Core-Telecom) while Android Auto is connected. -->
+    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
@@ -18,6 +21,10 @@
         <package android:name="com.android.settings" />
         <intent>
             <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <!-- Call icon extension: lets the call's picture be granted to in-call UIs (Android Auto). -->
+        <intent>
+            <action android:name="android.telecom.InCallService" />
         </intent>
     </queries>
 
@@ -100,7 +107,7 @@
         <service
             android:name=".VoiceService"
             android:exported="false"
-            android:foregroundServiceType="microphone" />
+            android:foregroundServiceType="microphone|phoneCall" />
 
         <service
             android:name=".WearRelayService"
@@ -114,22 +121,81 @@
             </intent-filter>
         </service>
 
-        <!-- Android Auto: Laura as a media source (a template/media app is all Android Auto allows). -->
+        <!-- Android Auto: Laura's car screen, a templated calling app (her call itself is the Telecom call). -->
+        <service
+            android:name=".car.LauraCarAppService"
+            android:exported="true"
+            android:icon="@drawable/car_icon"
+            android:label="Laura">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.CALLING" />
+            </intent-filter>
+        </service>
+
+        <!-- Fallback when car call mode is off: Laura as a media source. -->
         <service
             android:name=".car.LauraMediaService"
             android:exported="true"
-            android:label="Laura">
+            android:label="Laura (media)">
             <intent-filter>
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
 
+        <!-- Home screen widgets (widget/): pushed on state changes by WidgetSync, configured per widget -->
+        <receiver
+            android:name=".widget.LauraWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_card_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/laura_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.LauraTalkWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_talk_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/laura_widget_talk_info" />
+        </receiver>
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="Laura widget"
+            android:taskAffinity="dev.hect.lauravoice.widget">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
         <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="1" />
+        <meta-data
             android:name="androidx.car.app.TintableAttributionIcon"
             android:resource="@drawable/ic_laura" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/car_files" />
+        </provider>
 
         <meta-data
             android:name="com.google.mlkit.vision.DEPENDENCIES"

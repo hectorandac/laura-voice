@@ -1,6 +1,8 @@
 package dev.hect.lauravoice
 
 import android.Manifest
+import android.app.Activity
+import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Color as AColor
@@ -15,6 +17,23 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.core.view.WindowCompat
+import dev.hect.lauravoice.settings.Glyphs
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -77,6 +96,8 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     /** Bumped on every onStart: opening the app turns Laura on. */
     private val starts = mutableIntStateOf(0)
+    /** Bumped for every request to show settings from outside (launcher shortcut, "open settings" said to Laura). */
+    private val settingsRequests = mutableIntStateOf(0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,11 +105,21 @@ class MainActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(AColor.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(AColor.TRANSPARENT),
         )
+        if (intent?.action == ACTION_SETTINGS) settingsRequests.intValue++
         setContent {
             LauraTheme {
-                Surface(Modifier.fillMaxSize(), color = Bg) { Root(starts.intValue) }
+                Surface(Modifier.fillMaxSize(), color = Bg) { Root(starts.intValue, settingsRequests.intValue) }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        if (intent.action == ACTION_SETTINGS) settingsRequests.intValue++
+    }
+
+    companion object {
+        const val ACTION_SETTINGS = "dev.hect.lauravoice.SETTINGS"
     }
 
     override fun onStart() {
@@ -101,9 +132,15 @@ internal fun hasMic(ctx: Context) =
     ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
 @Composable
-private fun Root(starts: Int) {
+private fun Root(starts: Int, settingsRequests: Int) {
     val ctx = LocalContext.current
     var settings by remember { mutableStateOf(!App.store.load().configured) }
+    LaunchedEffect(settingsRequests) {
+        if (settingsRequests > 0) {
+            SettingsHint.seen(ctx)
+            settings = true
+        }
+    }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { res ->
         if (res[Manifest.permission.RECORD_AUDIO] == true) VoiceServiceBase.start(ctx, VoiceService::class.java)
     }
@@ -118,21 +155,46 @@ private fun Root(starts: Int) {
         runCatching { WatchSync.push(ctx, App.store.load()) }
         if (App.store.load().configured && !App.engine.active) turnOn()
     }
-    App.engine.ui.collectAsStateWithLifecycle().value.enroll?.let { EnrollDialog(it) }
-    if (settings) {
-        val close = {
-            settings = false
-            if (App.store.load().configured && !App.engine.active) turnOn()
-        }
-        BackHandler(onBack = close)
-        SettingsScreen(onDone = close)
-    } else {
-        MainScreen(onSettings = { settings = true }, turnOn = turnOn)
+    // Settings is a sheet that slides up over the avatar; the avatar is dropped once it is fully covered.
+    val sheet = remember { MutableTransitionState(settings) }
+    sheet.targetState = settings
+    if (!(sheet.currentState && sheet.isIdle)) {
+        MainScreen(onSettings = { byUser ->
+            if (byUser) SettingsHint.seen(ctx)
+            settings = true
+        }, turnOn = turnOn)
     }
+    AnimatedVisibility(
+        sheet,
+        enter = slideInVertically(tween(320)) { it / 3 } + fadeIn(tween(220)),
+        exit = slideOutVertically(tween(260)) { it / 3 } + fadeOut(tween(200)),
+    ) {
+        SettingsTheme {
+            val dark = LocalPalette.current.dark
+            val view = LocalView.current
+            DisposableEffect(dark) {
+                val window = (view.context as? Activity)?.window
+                val bars = window?.let { WindowCompat.getInsetsController(it, view) }
+                bars?.isAppearanceLightStatusBars = !dark
+                bars?.isAppearanceLightNavigationBars = !dark
+                onDispose {
+                    bars?.isAppearanceLightStatusBars = false
+                    bars?.isAppearanceLightNavigationBars = false
+                }
+            }
+            val close = {
+                settings = false
+                if (App.store.load().configured && !App.engine.active) turnOn()
+            }
+            BackHandler(onBack = close)
+            SettingsScreen(onDone = close)
+        }
+    }
+    App.engine.ui.collectAsStateWithLifecycle().value.enroll?.let { EnrollDialog(it) }
 }
 
 @Composable
-private fun MainScreen(onSettings: () -> Unit, turnOn: () -> Unit) {
+private fun MainScreen(onSettings: (byUser: Boolean) -> Unit, turnOn: () -> Unit) {
     val engine = App.engine
     val ui by engine.ui.collectAsStateWithLifecycle()
     val car by CarState.active.collectAsStateWithLifecycle()
@@ -142,7 +204,7 @@ private fun MainScreen(onSettings: () -> Unit, turnOn: () -> Unit) {
     val onTap = {
         when {
             !ui.active -> turnOn()
-            ui.conn == Conn.CERT || ui.conn == Conn.BAD_KEY || ui.conn == Conn.NOT_CONFIGURED -> onSettings()
+            ui.conn == Conn.CERT || ui.conn == Conn.BAD_KEY || ui.conn == Conn.NOT_CONFIGURED -> onSettings(false)
             ui.conn == Conn.ELSEWHERE || ui.conn == Conn.OFFLINE -> engine.reconnect()
             ui.view == View.SPEAKING -> engine.stopReply()
             !ptt -> engine.setMuted(!ui.muted)
@@ -151,24 +213,114 @@ private fun MainScreen(onSettings: () -> Unit, turnOn: () -> Unit) {
     val onPress = { down: Boolean -> if (down) engine.pttDown() else engine.pttUp() }
     val openSettings = {
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-        onSettings()
+        onSettings(true)
+    }
+    val ctx = LocalContext.current
+    var coach by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (SettingsHint.due(ctx)) {
+            delay(1500)
+            SettingsHint.shown(ctx)
+            coach = true
+        }
     }
 
     Box(Modifier.fillMaxSize().background(Bg)) {
         Avatar(ui, car, ptt, onTap, onPress, Modifier.fillMaxSize(), onLongPress = openSettings) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Orb(ui, ptt, onTap, onPress) }
         }
+        SwipeUpZone(Modifier.align(Alignment.BottomCenter)) { onSettings(true) }
         Column(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp),
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 72.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             for (a in ui.approvals) ApprovalCard(a) { choice -> engine.approve(a.approvalId, choice) }
             Extras(ui)
             StatusLabel(ui, ptt)
-            Handle(onSettings)
+        }
+        AnimatedVisibility(
+            coach, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 16.dp, bottom = 84.dp),
+            enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }, exit = fadeOut(),
+        ) {
+            Coach { coach = false; SettingsHint.seen(ctx) }
+        }
+        SettingsButton(coach, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 20.dp, bottom = 16.dp)) {
+            coach = false
+            onSettings(true)
         }
     }
+}
+
+/** The quiet way in: a small round button at the bottom right, lit while the first-run hint points at it. */
+@Composable
+private fun SettingsButton(lit: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    val ring by animateFloatAsState(if (lit) 1f else 0f, tween(500), label = "ring")
+    Box(
+        modifier.size(56.dp).clip(CircleShape).clickable(onClickLabel = "Open settings", role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.size(44.dp + 12.dp * ring).background(Apricot.copy(alpha = 0.12f * ring), CircleShape),
+        )
+        Box(
+            Modifier.size(44.dp).clip(CircleShape).background(Color(0x12FFF0E8))
+                .border(1.dp, lerp(Color(0x1CFFF0E8), Apricot.copy(alpha = 0.5f), ring), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Glyphs.Sliders, "Settings", Modifier.size(20.dp), tint = lerp(Color(0xB8F6EEE9), Color(0xFFFFC59A), ring))
+        }
+    }
+}
+
+/** Swiping up from the bottom edge opens settings (the rest of the screen rotates her). */
+@Composable
+private fun SwipeUpZone(modifier: Modifier, onOpen: () -> Unit) {
+    var dy by remember { mutableStateOf(0f) }
+    Box(
+        modifier.fillMaxWidth().navigationBarsPadding().height(64.dp).padding(end = 80.dp)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = { dy = 0f },
+                    onDragEnd = { if (dy < -32.dp.toPx()) onOpen() },
+                ) { change, d -> dy += d; change.consume() }
+            }
+    )
+}
+
+/** First-run hint, shown on the first few visits until settings has been opened once. */
+@Composable
+private fun Coach(onDismiss: () -> Unit) {
+    Column(
+        Modifier.width(272.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xFF1C1520))
+            .border(1.dp, Color(0x1FFFECE4), RoundedCornerShape(18.dp)).padding(start = 16.dp, end = 8.dp, top = 14.dp, bottom = 4.dp)
+    ) {
+        Text("Settings live here", color = Color(0xFFF6EEE9), fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Text(
+            buildAnnotatedString {
+                append("Tap this button or swipe up. You can also just ask: ")
+                withStyle(SpanStyle(color = Color(0xFFFFC59A), fontWeight = FontWeight.Medium)) { append("“Laura, open settings”") }
+                append(" or ")
+                withStyle(SpanStyle(color = Color(0xFFFFC59A), fontWeight = FontWeight.Medium)) { append("“로라, 설정 열어줘”") }
+            },
+            Modifier.padding(top = 4.dp, end = 8.dp), color = Color(0xFFCDBFC4), fontSize = 13.sp, lineHeight = 19.sp,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Long-press her works too", Modifier.weight(1f), color = Color(0xFF8F8290), fontSize = 12.sp)
+            TextButton(onClick = onDismiss) { Text("Got it", color = Color(0xFFFFC59A), fontSize = 14.sp) }
+        }
+    }
+}
+
+private val Apricot = Color(0xFFFFB47A)
+
+/** The first-run hint for settings: shown on up to three visits, until settings is opened by the user. */
+private object SettingsHint {
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("laura", Context.MODE_PRIVATE)
+    fun due(ctx: Context) = App.store.load().configured && prefs(ctx).getInt("settings_hint", 0).let { it in 0..2 }
+    fun shown(ctx: Context) = prefs(ctx).let { it.edit().putInt("settings_hint", it.getInt("settings_hint", 0) + 1).apply() }
+    fun seen(ctx: Context) = prefs(ctx).edit().putInt("settings_hint", -1).apply()
 }
 
 /** What the tiny label under the avatar says, and whether it stays (needs attention) or fades. */
@@ -239,25 +391,6 @@ private fun Pill(text: String, action: String, onAction: () -> Unit) {
     ) {
         Text(text, Modifier.weight(1f, fill = false), color = TextSecondary, fontSize = 13.sp, maxLines = 1)
         TextButton(onClick = onAction) { Text(action, fontSize = 13.sp) }
-    }
-}
-
-/** A faint bar at the bottom: tap or swipe up for settings (long-pressing the avatar works too, outside push-to-talk). */
-@Composable
-private fun Handle(onOpen: () -> Unit) {
-    var dy by remember { mutableStateOf(0f) }
-    Box(
-        Modifier.fillMaxWidth().height(28.dp)
-            .pointerInput(Unit) { detectTapGestures { onOpen() } }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragStart = { dy = 0f },
-                    onDragEnd = { if (dy < -24.dp.toPx()) onOpen() },
-                ) { change, d -> dy += d; change.consume() }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(Modifier.width(36.dp).height(4.dp).clip(RoundedCornerShape(50)).background(Color(0x2EFFFFFF)))
     }
 }
 

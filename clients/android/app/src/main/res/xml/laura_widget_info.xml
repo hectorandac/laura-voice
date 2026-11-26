@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Laura card: 4x2 by default, resizable from 1x1 to 4x3+ (the layout follows the size). Updates are pushed by
+     the app on state changes (WidgetSync), never polled. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="dev.hect.lauravoice.widget.WidgetConfigActivity"
+    android:description="@string/widget_card_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="40dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeWidth="600dp"
+    android:maxResizeHeight="600dp"
+    android:previewImage="@drawable/widget_preview_card"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen|keyguard"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

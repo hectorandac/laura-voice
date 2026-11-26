@@ -1,0 +1,58 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Agent pane</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="base.css">
+<style>
+.pane { flex: 1; display: flex; flex-direction: column; padding: calc(var(--u) * 26px) calc(var(--u) * 32px); gap: calc(var(--u) * 18px); }
+.hdr { display: flex; align-items: center; gap: calc(var(--u) * 16px); }
+.hdr .ico { width: calc(var(--u) * 44px); height: calc(var(--u) * 44px); border-radius: 50%; background: #fff1e2 url(avatar.png) center 46% / 125% no-repeat; }
+.hdr h1 { font-size: calc(var(--u) * 34px); font-weight: 600; letter-spacing: -.6px; color: var(--aa-ink); }
+.body { flex: 1; display: flex; gap: calc(var(--u) * 32px); min-height: 0; }
+.rows { flex: 1.25; display: flex; flex-direction: column; min-width: 0; }
+.row { display: flex; gap: calc(var(--u) * 18px); padding: calc(var(--u) * 18px) 0; border-bottom: 1px solid #3a3a3a; align-items: flex-start; }
+.row:last-of-type { border-bottom: 0; }
+.row .g { width: calc(var(--u) * 40px); height: calc(var(--u) * 40px); flex: none; border-radius: 50%; display: grid; place-items: center; background: #2b2b2b; }
+.row .g svg { width: 58%; height: 58%; }
+.row .t { font-size: calc(var(--u) * 26px); font-weight: 500; color: var(--aa-ink); letter-spacing: -.3px; }
+.row .s { font-size: calc(var(--u) * 24px); color: var(--aa-muted); line-height: 1.35; margin-top: calc(var(--u) * 4px);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row.her .s { color: var(--aa-ink); }
+.acts { display: flex; gap: calc(var(--u) * 16px); margin-top: auto; }
+.act { flex: 1; height: calc(var(--u) * 72px); border-radius: 999px; display: grid; place-items: center; font-size: calc(var(--u) * 26px); font-weight: 500; background: #2b2b2b; color: var(--aa-ink); }
+.act.primary { background: #8ab4f8; color: #0b1a33; }
+.img { flex: 1; display: grid; place-items: center; }
+.img .portrait { width: min(100%, calc(var(--u) * 300px)); aspect-ratio: 1; }
+.narrow .img { display: none; }
+</style></head>
+<body><div class="aa">
+  <div class="rail"><div class="clock">9:41</div>
+    <div class="apps"><div class="app maps"></div><div class="app laura active"></div><div class="app"></div></div>
+    <div class="grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  <div class="content"><div class="card pane">
+    <div class="hdr"><div class="ico"></div><h1>Laura</h1></div>
+    <div class="body">
+      <div class="rows">
+        <div class="row"><div class="g"><svg viewBox="0 0 24 24" fill="#9aa0a6"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-3.3 0-8 1.7-8 5v1h16v-1c0-3.3-4.7-5-8-5z"/></svg></div>
+          <div><div class="t">You</div><div class="s" id="you">How long until we get to Jamsil?</div></div></div>
+        <div class="row her"><div class="g" id="glyph"></div>
+          <div><div class="t">Laura</div><div class="s" id="her">About 25 minutes. Traffic on Olympic-daero is light, so you should be there by 10:10.</div></div></div>
+        <div class="acts"><div class="act primary" id="a1">Call Laura</div><div class="act" id="a2">Mute</div></div>
+      </div>
+      <div class="img"><div class="portrait"></div></div>
+    </div>
+  </div></div>
+</div>
+<script>
+const g = {
+  idle: '<svg viewBox="0 0 24 24" fill="#9aa0a6"><circle cx="12" cy="12" r="5"/></svg>',
+  listen: '<svg viewBox="0 0 24 24" fill="#7c83e6"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"/></svg>',
+  speak: '<svg viewBox="0 0 24 24" fill="#ffd9a8"><rect x="3" y="9" width="2.6" height="6" rx="1.3"/><rect x="7.6" y="5" width="2.6" height="14" rx="1.3"/><rect x="12.2" y="7.5" width="2.6" height="9" rx="1.3"/><rect x="16.8" y="10" width="2.6" height="4" rx="1.3"/></svg>',
+  think: '<svg viewBox="0 0 24 24" fill="#9aa0a6"><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/></svg>',
+};
+const p = new URLSearchParams(location.search);
+document.getElementById('glyph').innerHTML = g[p.get('state') || 'speak'];
+if (p.get('you')) document.getElementById('you').textContent = p.get('you');
+if (p.get('her')) document.getElementById('her').textContent = p.get('her');
+if (p.get('a1')) document.getElementById('a1').textContent = p.get('a1');
+if (p.get('narrow')) document.body.classList.add('narrow');
+</script>
+</body></html>

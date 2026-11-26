@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from silero_vad import load_silero_vad
 
 import addressee
+import car_mode
 import interrupts
 import speaker
 from stt import Leveler, load_recognizer
@@ -136,6 +137,7 @@ def system_prompt(context: dict, avatar=AVATAR_TAGS) -> str:
     if driving:
         lines.append(f"{USER_NAME} is driving right now: keep answers especially brief and never ask {USER_NAME} to look at "
                      "the screen." + (" Don't use any tags." if avatar else ""))
+        lines.append(car_mode.RULES.format(user=USER_NAME))
     if ctx:
         lines.append(f"Context from {USER_NAME}'s devices: " + json.dumps(ctx, ensure_ascii=False))
     return "\n".join(lines)
@@ -304,6 +306,7 @@ class Session:
         self.enroll = None
         self.turn_metrics = {}
         self.ignored = []            # recent not-addressed turns that "that was for you" can bring back
+        self.overheard = []          # car mode: (time, text) of recent turns she chose to stay silent for
         self.reply_source = LOCAL_SOURCE
         self.wake_at, self.turn_wake = None, None   # client wake word: (time, score) pending; score of this turn
 
@@ -467,10 +470,13 @@ class Session:
                 return
         log.info("turn %s addressed %s %r", turn_id, info, text)
         self.gate.reply_end = max(self.gate.reply_end, time.time())
-        await self.send(type="user_turn", turn_id=turn_id, text=text, lang=lang_of(text))
+        cmd = gi.get("command")
+        # car mode: the model may stay silent, so the turn is only shown once it decides to talk
+        may_pass = bool(self.context.get("car")) and self.mode == "handsfree" and not cmd and gi["why"] != "wake"
+        if not may_pass:
+            await self.send(type="user_turn", turn_id=turn_id, text=text, lang=lang_of(text))
         await self.cancel_reply()
         await self._settle_cuts()
-        cmd = gi.get("command")
         if not cmd and bi is not None and interrupts.is_hold(text):
             log.info("turn %s hold: %r", turn_id, text)       # "wait": she stopped; nothing to answer
             await self.idle()
@@ -479,8 +485,13 @@ class Session:
             say = self._resume_text(intent)
             if say:
                 log.info("turn %s %s: %r", turn_id, intent, say[:80])
+                if may_pass:
+                    await self.send(type="user_turn", turn_id=turn_id, text=text, lang=lang_of(text))
                 self.reply_task = asyncio.create_task(self.reply(turn_id, text, canned=say, resume=intent))
                 return
+        if may_pass:
+            self.reply_task = asyncio.create_task(self.reply(turn_id, text, may_pass=True))
+            return
         if cmd:
             self.gate.muted = cmd == "mute"
             await self.send(type="muted", value=self.gate.muted)
@@ -853,6 +864,8 @@ class Session:
         last = self.replies.get(self.last_reply_turn)
         if last is not None and last.was_cut() and last.hist is not None and last.hist in self.history[-2:]:
             system += "\n" + last.cut_note(USER_NAME)
+        if self.context.get("car") and (note := car_mode.overheard_note(self.overheard, USER_NAME)):
+            system += "\n" + note
         return LAURA.messages(self, system, self.history[-MAX_HISTORY:], text)
 
     async def _llm_deltas(self, body, text):
@@ -993,9 +1006,42 @@ class Session:
         self.avatar_cue = cue or None
         return None, buf.lstrip()
 
-    async def reply(self, turn_id, text, canned=None, resume=None):
-        self.reply_source = LOCAL_SOURCE
+    async def _unless_silent(self, deltas, turn_id, text, car):
+        """Car mode: hold the reply's first characters until it is clear she talks. A silent reply is swallowed
+        (car["silent"]); otherwise the turn is shown (user_turn, thinking) and the text passes on unchanged."""
+        buf, verdict = "", None
+        async with aclosing(deltas) as ds:
+            async for d in ds:
+                if verdict == "speak":
+                    yield d
+                    continue
+                buf += d
+                verdict = car_mode.silence(buf, final=False)
+                if verdict == "silent":
+                    break
+                if verdict == "speak":
+                    await self._show_turn(turn_id, text, car)
+                    yield buf
+        if verdict is None:
+            verdict = car_mode.silence(buf, final=True)
+            if verdict == "speak":
+                await self._show_turn(turn_id, text, car)
+                yield buf
+        if verdict == "silent":
+            car["silent"], car["said"] = True, buf.strip()[:80]
+
+    async def _show_turn(self, turn_id, text, car):
+        car["shown"] = True
+        await self.send(type="user_turn", turn_id=turn_id, text=text, lang=lang_of(text))
         await self.state("thinking")
+
+    async def reply(self, turn_id, text, canned=None, resume=None, may_pass=False):
+        """may_pass (car mode): the model may answer with car_mode.SILENT_TOKEN; then nothing is shown or said."""
+        self.reply_source = LOCAL_SOURCE
+        car = {"shown": not may_pass, "silent": False}
+        failed = False
+        if not may_pass:
+            await self.state("thinking")
         self.reply_turn = turn_id
         rec = self._new_reply(turn_id)
         full, pending, started = "", "", False
@@ -1018,7 +1064,10 @@ class Session:
             await self._settle_cuts()
             body = {"model": LLM_MODEL, "stream": True, "max_tokens": 300, "temperature": 0.6, **SAMPLING,
                     "messages": self._messages(text), "chat_template_kwargs": {"enable_thinking": False}}
-            async with aclosing(self._llm_deltas(body, text)) as deltas:
+            stream = self._llm_deltas(body, text)
+            if may_pass:
+                stream = self._unless_silent(stream, turn_id, text, car)
+            async with aclosing(stream) as deltas:
                 async for delta in deltas:
                     if lead is not None:
                         lead, delta = self._lead_tags(lead + delta, tags, final=False)
@@ -1051,6 +1100,10 @@ class Session:
                                 await self.send(type="metrics", turn_id=turn_id, **m_)
                                 log.info("turn %s metrics %s", turn_id, m_)
                             started = True
+            if car["silent"]:
+                self.overheard = car_mode.keep_overheard(self.overheard, text)
+                log.info("turn %s car: stayed silent (%r) %r", turn_id, car["said"], text)
+                return
             rest = hold
             if lead and not looped:
                 rest = self._lead_tags(lead, tags, final=True)[1]
@@ -1074,7 +1127,12 @@ class Session:
             rec.hist = {"role": "assistant", "content": rec.tags + (rec.history_text() if rec.cut is not None
                                                                     else full.strip())}
             self.history += [{"role": "user", "content": text}, rec.hist]
+            if self.context.get("car"):
+                self.overheard = []
         except asyncio.CancelledError:
+            if not car["shown"]:             # superseded before she decided to talk: keep it as context only
+                self.overheard = car_mode.keep_overheard(self.overheard, text)
+                raise
             rec.text = full
             if rec.cut_at is None:           # superseded by a new turn rather than a barge-in
                 rec.set_cut(rec.estimate_played(time.time()), False)
@@ -1083,6 +1141,7 @@ class Session:
             self.history += [{"role": "user", "content": text}, rec.hist]
             raise
         except Exception as e:  # noqa: BLE001
+            failed = True
             log.exception("reply failed")
             await self.send(type="error", message=str(e)[:200])
         finally:
@@ -1095,9 +1154,14 @@ class Session:
                     pass
                 await self.send(type="audio_end", turn_id=turn_id)
             self.speaking = False
-            self.reacted_prev = self.reacted_now
-            self.last_reply_turn, self.reply_turn = turn_id, None
-            await self.idle()
+            if car["shown"] or failed:
+                self.reacted_prev = self.reacted_now
+                self.last_reply_turn, self.reply_turn = turn_id, None
+                await self.idle()
+            else:                            # stayed silent: no state change, no reply to cut or resume
+                self.replies.pop(turn_id, None)
+                if self.reply_turn == turn_id:
+                    self.reply_turn = None
 
     def _resumed(self, intent, said, rec):
         """After a deterministic 'go on' / 'repeat that': move the resume point and tidy the cut reply's history."""

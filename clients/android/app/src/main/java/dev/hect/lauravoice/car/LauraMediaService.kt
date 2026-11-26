@@ -1,8 +1,10 @@
 package dev.hect.lauravoice.car
 
 import android.Manifest
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
+import android.content.ContentResolver
+import android.net.Uri
 import android.os.Bundle
 import android.os.Process
 import android.support.v4.media.MediaBrowserCompat.MediaItem
@@ -12,9 +14,9 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
 import androidx.media.MediaBrowserServiceCompat
 import dev.hect.lauravoice.App
+import dev.hect.lauravoice.core.CarBrowse
 import dev.hect.lauravoice.core.CarState
 import dev.hect.lauravoice.R
 import dev.hect.lauravoice.VoiceService
@@ -31,9 +33,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * Laura as a media source in Android Auto (and anything else that browses media apps). Android Auto draws the
- * screen from this session: her icon as artwork, what she's doing as the subtitle, her last reply as the
- * description. Play = talk (turns her on or unmutes), Pause/Stop = stop the reply; custom actions mute and turn
+ * Laura as a media source in Android Auto (and anything else that browses media apps), the fallback when car call
+ * mode is off. Android Auto draws the screen from this session: one static picture of her as artwork, what she's
+ * doing as the subtitle, her last reply as the description. Play = talk (turns her on or unmutes), Pause/Stop = stop the reply; custom actions mute and turn
  * off. The session reports PLAYING only while she speaks, so switching Android Auto to another media app while
  * she's quiet doesn't mute her, and the steering-wheel pause stops a reply.
  */
@@ -41,9 +43,7 @@ class LauraMediaService : MediaBrowserServiceCompat() {
     private lateinit var session: MediaSessionCompat
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var error: String? = null
-    private val art: Bitmap? by lazy {
-        runCatching { packageManager.getApplicationIcon(packageName).toBitmap(320, 320) }.getOrNull()
-    }
+    private val uris = HashMap<Int, Uri>()
 
     override fun onCreate() {
         super.onCreate()
@@ -54,10 +54,11 @@ class LauraMediaService : MediaBrowserServiceCompat() {
         sessionToken = session.sessionToken
         scope.launch {
             // The UI state ticks with the mic level; only what's shown here matters.
-            combine(App.engine.ui, CarState.active) { ui, car ->
-                Triple(car, status(ui), listOf(ui.active, ui.view, ui.muted, ui.lines.lastOrNull { it.role == "assistant" }?.text))
-            }.distinctUntilChanged().collect { (car, _, _) ->
-                if (session.isActive != car) session.isActive = car
+            // During a car call Android Auto shows the call instead, so the media session steps aside.
+            combine(App.engine.ui, CarState.active, CarState.call) { ui, car, call ->
+                Triple(car && !call, status(ui), listOf(ui.active, ui.view, ui.muted, ui.lines.lastOrNull { it.role == "assistant" }?.text))
+            }.distinctUntilChanged().collect { (on, _, _) ->
+                if (session.isActive != on) session.isActive = on
                 publish(App.engine.ui.value)
             }
         }
@@ -70,21 +71,24 @@ class LauraMediaService : MediaBrowserServiceCompat() {
     }
 
     override fun onGetRoot(clientPackageName: String, clientUid: Int, rootHints: Bundle?): BrowserRoot? {
-        val trusted = clientUid == Process.myUid() || clientUid == Process.SYSTEM_UID || clientPackageName in TRUSTED
-        if (!trusted) Log.i(TAG, "refused browser $clientPackageName")
-        return if (trusted) BrowserRoot(ROOT, null) else null
+        val app = runCatching { packageManager.getApplicationInfo(clientPackageName, 0) }.getOrNull()
+        val ok = CarBrowse.allowed(
+            clientPackageName, clientUid, Process.myUid(), Process.SYSTEM_UID,
+            systemApp = app != null && (app.flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0,
+            mediaControl = packageManager.checkPermission(MEDIA_CONTENT_CONTROL, clientPackageName) == PackageManager.PERMISSION_GRANTED,
+        )
+        Log.i(TAG, "${if (ok) "root for" else "refused"} browser $clientPackageName")
+        return if (ok) BrowserRoot(CarBrowse.ROOT, null) else null
     }
 
     override fun onLoadChildren(parentId: String, result: Result<MutableList<MediaItem>>) {
-        if (parentId != ROOT) return result.sendResult(mutableListOf())
         val ui = App.engine.ui.value
-        val talk = MediaDescriptionCompat.Builder()
-            .setMediaId(TALK)
-            .setTitle("Talk to Laura")
-            .setSubtitle(status(ui))
-            .setIconBitmap(art)
-            .build()
-        result.sendResult(mutableListOf(MediaItem(talk, MediaItem.FLAG_PLAYABLE)))
+        result.sendResult(CarBrowse.children(parentId).mapTo(mutableListOf()) { n ->
+            val d = MediaDescriptionCompat.Builder().setMediaId(n.id)
+            if (n.browsable) d.setTitle("Laura").setIconUri(uri(R.drawable.ic_car_laura))
+            else d.setTitle("Talk to Laura").setSubtitle(status(ui)).setIconUri(uri(R.drawable.car_icon))
+            MediaItem(d.build(), if (n.browsable) MediaItem.FLAG_BROWSABLE else MediaItem.FLAG_PLAYABLE)
+        })
     }
 
     private val callback = object : MediaSessionCompat.Callback() {
@@ -132,20 +136,32 @@ class LauraMediaService : MediaBrowserServiceCompat() {
         else -> "Say \"Laura\""
     }
 
-    private fun publish(ui: UiState) {
+    /** Artwork goes out as android.resource URIs (what the Android Auto docs ask for), never as bitmaps over Binder. */
+    private fun uri(id: Int): Uri = uris.getOrPut(id) {
+        Uri.Builder().scheme(ContentResolver.SCHEME_ANDROID_RESOURCE).authority(resources.getResourcePackageName(id))
+            .appendPath(resources.getResourceTypeName(id)).appendPath(resources.getResourceEntryName(id)).build()
+    }
+
+    private fun setMetadata(ui: UiState) {
+        val art = uri(R.drawable.car_avatar).toString()
         val last = ui.lines.lastOrNull { it.role == "assistant" }?.text.orEmpty()
         session.setMetadata(
             MediaMetadataCompat.Builder()
-                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, TALK)
+                .putString(MediaMetadataCompat.METADATA_KEY_MEDIA_ID, CarBrowse.TALK)
                 .putString(MediaMetadataCompat.METADATA_KEY_TITLE, "Laura")
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, "Laura")
                 .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, status(ui))
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_SUBTITLE, status(ui))
                 .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_DESCRIPTION, last.take(200))
-                .putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, art)
-                .putBitmap(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON, art)
+                .putString(MediaMetadataCompat.METADATA_KEY_ART_URI, art)
+                .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, art)
+                .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, art)
                 .build()
         )
+    }
+
+    private fun publish(ui: UiState) {
+        setMetadata(ui)
         val state = when {
             !ui.active -> PlaybackStateCompat.STATE_PAUSED
             ui.view == View.SPEAKING -> PlaybackStateCompat.STATE_PLAYING
@@ -165,25 +181,16 @@ class LauraMediaService : MediaBrowserServiceCompat() {
             b.addCustomAction(ACTION_OFF, "Turn off", OFF_ICON)
         }
         session.setPlaybackState(b.build())
-        notifyChildrenChanged(ROOT)
+        notifyChildrenChanged(CarBrowse.HOME)
     }
 
     companion object {
         private const val TAG = "LauraMedia"
-        private const val ROOT = "laura_root"
-        private const val TALK = "talk"
+        private const val MEDIA_CONTENT_CONTROL = "android.permission.MEDIA_CONTENT_CONTROL"
         private const val ACTION_MUTE = "dev.hect.lauravoice.car.MUTE"
         private const val ACTION_OFF = "dev.hect.lauravoice.car.OFF"
         private val MIC_ICON = R.drawable.ic_car_mic
         private val OFF_ICON = R.drawable.ic_car_off
-        private val TRUSTED = setOf(
-            "com.google.android.projection.gearhead",   // Android Auto
-            "com.google.android.carassistant",
-            "com.google.android.googlequicksearchbox",  // Assistant / Gemini voice actions
-            "com.google.android.autosimulator",
-            "com.android.systemui",
-            "com.android.bluetooth",
-        )
 
         /** Cross-lane hook: what "talk" does once she's on and unmuted (e.g. open the mic without the wake word). */
         @Volatile var onTalk: (() -> Unit)? = { App.engine.summon() }

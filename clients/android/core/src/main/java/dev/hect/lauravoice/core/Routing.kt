@@ -12,6 +12,8 @@ data class RouteDecision(val route: Route, val fullDuplex: Boolean, val why: Str
  * output is a wired/USB headset.
  * CALL: MODE_IN_COMMUNICATION, VOICE_COMMUNICATION mic with the platform echo canceller, so voice barge-in
  * works on the loudspeaker. Bluetooth would see a phone call (HFP), and media apps are disturbed while it is on.
+ * A car call (a Telecom call named Laura while Android Auto is connected) always routes as CALL: Telecom owns the
+ * audio mode and the device (normally the car's hands-free), the app only uses the voice-communication usage/source.
  */
 object Routing {
     private val headsets = setOf(
@@ -23,11 +25,12 @@ object Routing {
         AudioDeviceInfo.TYPE_BLE_BROADCAST, AudioDeviceInfo.TYPE_HEARING_AID,
     )
 
-    fun decide(setting: String, car: Boolean, outputs: Set<Int>, watch: Boolean = false): RouteDecision {
+    fun decide(setting: String, car: Boolean, outputs: Set<Int>, watch: Boolean = false, carCall: Boolean = false): RouteDecision {
         val headset = outputs.any { it in headsets }
         val bt = outputs.any { it in bluetooth }
         return when {
             watch -> RouteDecision(Route.MEDIA, false, "watch")
+            carCall -> RouteDecision(Route.CALL, true, "car call")
             setting == "media" -> RouteDecision(Route.MEDIA, headset && !bt && !car, "media (setting)")
             setting == "call" -> RouteDecision(Route.CALL, true, "call (setting)")
             car -> RouteDecision(Route.MEDIA, false, "car mode")

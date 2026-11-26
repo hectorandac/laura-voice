@@ -12,6 +12,8 @@ data class Config(
     val lang: String = "auto",
     val mode: String = "handsfree",
     val car: Boolean = false,
+    /** A car call (Telecom self-managed call, `CarState.call`) is up: audio belongs to the call. */
+    val carCall: Boolean = false,
     val route: String = "auto",
     val codec: String = "opus",
     val transport: String = "phone",
@@ -77,6 +79,9 @@ class ConfigStore(context: Context) {
     /** Where car mode comes from when set (the phone's car detector); otherwise the old "car" preference. */
     @Volatile var carSource: (() -> Boolean)? = null
 
+    /** Whether a car call is up right now (the phone's car call controller). */
+    @Volatile var carCallSource: (() -> Boolean)? = null
+
     fun load() = Config(
         url = prefs.getString("url", "")!!,
         key = prefs.getString("key", "")!!,
@@ -84,6 +89,7 @@ class ConfigStore(context: Context) {
         lang = prefs.getString("lang", "auto")!!,
         mode = prefs.getString("mode", "handsfree")!!,
         car = carSource?.invoke() ?: prefs.getBoolean("car", false),
+        carCall = carCallSource?.invoke() ?: false,
         route = prefs.getString("route", "auto")!!,
         codec = prefs.getString("codec", "opus")!!,
         transport = prefs.getString("transport", "phone")!!,

@@ -47,7 +47,7 @@ async def main():
         print(f"classifier latency median {lat[len(lat) // 2]} ms, p90 {lat[int(len(lat) * .9)]} ms, max {lat[-1]} ms")
         ko = [r for r in items if any("가" <= c <= "힣" for c in r["text"])]
         en = [r for r in items if r not in ko]
-        print("outside the window (default 0.6, car 0.4):")
+        print("outside the window (default 0.6):")
         for th in (0.25, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9):
             print(f"  th {th:.2f} all {prf(items, th)} | ko {prf(ko, th)} | en {prf(en, th)}")
         print(f"inside the window, after the reply {LAST_REPLY!r} (threshold 0.25):")

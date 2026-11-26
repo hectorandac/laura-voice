@@ -1,0 +1,74 @@
+/* Laura car surfaces. Linear-style dark system (awesome-design-md/linear.app): near-black canvas, surface
+   ladder, hairlines, one chromatic accent per meaning. Accents come from Laura herself: lavender = her hair
+   (listening), apricot = her icon plate (speaking). */
+:root {
+  --canvas: #08090a;
+  --surface-1: #0f1011;
+  --surface-2: #141516;
+  --surface-3: #1b1c1e;
+  --hairline: #23252a;
+  --hairline-strong: #34343a;
+  --ink: #f7f8f8;
+  --ink-muted: #d0d6e0;
+  --ink-subtle: #8a8f98;
+  --ink-tertiary: #62666d;
+  --listen: #7c83e6;     /* Linear lavender, lifted for small dots on dark */
+  --speak: #ffd9a8;      /* apricot plate */
+  --think: #8a8f98;
+  --end: #e5484d;
+  --aa-bg: #000000;      /* Android Auto chrome */
+  --aa-surface: #1f1f1f;
+  --aa-surface-2: #2b2b2b;
+  --aa-ink: #e8eaed;
+  --aa-muted: #9aa0a6;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: var(--canvas); color: var(--ink); }
+body {
+  font-family: "Inter", "Noto Sans KR", system-ui, sans-serif;
+  font-feature-settings: "calt", "kern", "liga", "ss03", "cv11";
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+.portrait {
+  border-radius: 50%;
+  background: #1f1714 url(avatar.png) center 50% / 100% no-repeat;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .06);
+}
+.dot { display: inline-block; width: .5em; height: .5em; border-radius: 50%; vertical-align: .12em; }
+.dot.listen { background: var(--listen); box-shadow: 0 0 0 .28em rgba(124, 131, 230, .16); }
+.dot.speak { background: var(--speak); box-shadow: 0 0 0 .28em rgba(255, 217, 168, .14); }
+.dot.think { background: var(--think); }
+
+/* Android Auto chrome approximation: left rail + content area. */
+.aa { display: flex; width: 100%; height: 100%; background: var(--aa-bg); }
+.rail {
+  width: var(--rail, 112px); flex: none; display: flex; flex-direction: column; align-items: center;
+  justify-content: space-between; padding: 24px 0; background: var(--aa-bg); color: var(--aa-ink);
+}
+.rail .clock { font-size: var(--clock, 26px); font-weight: 500; letter-spacing: -.3px; }
+.rail .apps { display: flex; flex-direction: column; gap: var(--rail-gap, 22px); align-items: center; }
+.rail .app { width: var(--app, 52px); height: var(--app, 52px); border-radius: 50%; background: var(--aa-surface-2); }
+.rail .app.maps { background: conic-gradient(#34a853 0 25%, #fbbc04 0 50%, #ea4335 0 75%, #4285f4 0); }
+.rail .app.laura { background: #fff1e2 url(avatar.png) center 46% / 125% no-repeat; }
+.rail .app.active { outline: 3px solid var(--aa-ink); outline-offset: 4px; }
+.rail .grid { width: 34px; height: 34px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.rail .grid i { background: var(--aa-muted); border-radius: 50%; }
+.content { flex: 1; padding: var(--pad, 16px) var(--pad, 16px) var(--pad, 16px) 0; display: flex; gap: var(--pad, 16px); }
+.card { background: var(--aa-surface); border-radius: var(--card-r, 28px); overflow: hidden; position: relative; }
+.map {
+  background:
+    radial-gradient(circle at 30% 70%, #2a3b2f 0 6%, transparent 6.5%),
+    linear-gradient(115deg, transparent 0 46%, #3c4043 46% 49%, transparent 49%),
+    linear-gradient(25deg, transparent 0 60%, #3c4043 60% 62%, transparent 62%),
+    linear-gradient(160deg, transparent 0 30%, #4a6fa5 30% 33%, transparent 33%),
+    #202124;
+}
+.map .turn {
+  position: absolute; left: 20px; top: 20px; right: 20px; background: #0d652d; color: #fff; border-radius: 18px;
+  padding: 16px 20px; font-size: var(--turn, 30px); font-weight: 600; letter-spacing: -.4px; display: flex; gap: 14px;
+  align-items: center;
+}
+.map .turn small { display: block; font-size: .55em; font-weight: 400; opacity: .85; letter-spacing: 0; }
+.map .turn .arrow { font-size: 1.3em; }
+.map .me { position: absolute; left: 47%; top: 62%; width: 26px; height: 26px; background: #4285f4; border: 4px solid #fff; border-radius: 50%; }

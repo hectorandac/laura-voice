@@ -17,7 +17,7 @@ accepts `laura.v1`). `?k=` keeps working for older clients.
 | `{"type":"end_turn"}` | Push-to-talk released. |
 | `{"type":"interrupt"}` | User barged in: stop the current reply. |
 | `{"type":"mode","value":...}` / `{"type":"lang","value":...}` | Change mode or language. |
-| `{"type":"context","data":{...}}` | Situational cues; replaces the previous context. Known keys: `car` (bool). Reserved: `location`, `activity`, `others_present`, `device`. |
+| `{"type":"context","data":{...}}` | Situational cues; replaces the previous context. Known keys: `car` (bool, see Car mode below). Reserved: `location`, `activity`, `others_present`, `device`. |
 | `{"type":"ping","t":<client clock ms>}` | Latency probe; server answers `pong` with the same `t`. |
 | `{"type":"client_stats",...}` | Periodic telemetry (rtt_ms, up/down kbps, MB, turn_ms, codecs, playback counters). Logged by the server. |
 
@@ -44,9 +44,10 @@ displaced client must not auto-reconnect (show "in use on another device", recon
 In hands-free mode the server only answers utterances that are (1) in the enrolled owner's voice, when a voice
 profile exists, and (2) addressed to the assistant: the name ("Laura", 로라, common misspellings) anywhere in the
 utterance, a follow-up within ~20 s of the last answered turn, reply or connect, a bare greeting, or, otherwise, a yes from a small LLM
-classifier (strict at home, permissive with `context.car` = true). When another voice was heard recently (or
-`context.others_present` is true), only the name counts outside the window. Push-to-talk turns skip both checks.
-Everything else gets an `ignored` event instead of `user_turn`; partials are still sent while it is heard.
+classifier. When another voice was heard recently (or `context.others_present` is true), only the name counts
+outside the window. Push-to-talk turns skip both checks. Everything else gets an `ignored` event instead of
+`user_turn`; partials are still sent while it is heard. With `context.car` = true the addressee gate is replaced
+by the reply model's own decision (see Car mode); the owner check and mute still apply.
 
 Client → server:
 
@@ -73,6 +74,25 @@ Server → client:
 | `{"type":"avatar","turn_id","reaction"?,"emotion"?}` | Avatar cue for a reply, sent right after its `audio_start` so it lands with the voice. `reaction` (one-shot): `nod`, `shake`, `happy`, `laugh`, `confused`, `thinking_hard`, `surprised`, `sad`, `shy`, `excited`, `sleepy`, `wave`, `celebrate`, `shrug`, `focus`. `emotion` (persistent mood): `happy`, `confused`, `apologetic`, `none`. Either field may be absent; clients ignore unknown names. Never sent with a reaction in car mode; at most one reaction every two replies, never the same one twice in a row, and `focus`/`shrug` only on short replies (sent once the reply text is complete). The LLM writes these as leading `<r:nod>` / `<e:happy>` tags; the server strips them from `assistant_delta`/`assistant_done` text and from TTS. |
 | `{"type":"muted","value":bool}` | Mute state (sent after `session` and on every change). While muted only the resume phrase is acted on. |
 | `{"type":"interrupted","turn_id","reason":"barge_in"}` | The owner talked over a reply: stop playback of `turn_id` now and drop its remaining audio. With a profile enrolled the server verifies the voice (~0.8 s of speech) before interrupting, so TV or other people don't cut replies off; clients that do their own level-based barge-in bypass that check. |
+
+## Car mode (v1, additive)
+
+With `context.car` = true (hands-free), she never drops out of the conversation: there is no follow-up window to
+expire, no `ignored` `not_addressed` and nothing to recall or re-wake. Every utterance that passes the owner check
+(any speech when no voice profile is enrolled) goes to the reply model, whose car-mode prompt tells it to answer
+when Hector talks to her or a short answer is clearly useful, and otherwise to reply exactly `<silent>`.
+
+- A silent reply is swallowed: no `user_turn`, no `state` change, no `assistant_*`, no audio, no `ignored`. The
+  client keeps showing `listening`. Empty replies, `[silent]`/`<silence>`-style variants, and replies that open by
+  saying it wasn't meant for her ("I'm not sure that was for me", "저한테 하신 말씀이에요?") count as silent.
+- Otherwise the turn appears as usual, only slightly later: `user_turn`, then `state` `thinking`, are sent once the
+  first characters of the reply show she is talking (a few tokens; ordinary replies are released on their first
+  word).
+- She keeps up to three utterances from the last 90 s that she stayed silent for, so "Laura, answer that" or a
+  follow-up that refers to them works without a tap. They are dropped once she answers.
+- The name ("Laura", 로라) still works and counts as addressing her, but isn't needed. A `wake` turn, spoken
+  mute/resume, "go on" / "repeat that" and push-to-talk are answered as outside the car.
+- Gate decisions log `why: "car"` (or `"name"`); `metrics` no longer carry `classifier_ms`/`p` in the car.
 
 ## Interruptions (v1, additive)
 

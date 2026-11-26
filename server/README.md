@@ -51,12 +51,18 @@ the GPU (`ASR_DEVICE=cuda`).
 ## Who is talking, and to whom
 Hands-free turns are answered only if (1) the voice matches the enrolled profile (when one exists) and (2) the
 utterance is addressed to Laura: her name (로라, 라우라, "Lora,"... fuzzy, vocative-only for ambiguous spellings),
-a follow-up within 20 s after the last answered turn, reply or connect, a bare greeting, or a one-token yes/no from the 9B (threshold 0.6, 0.4 when
-`context.car` and nobody else was heard). A non-owner voice in the last 2 minutes means "others present": only
+a follow-up within 20 s after the last answered turn, reply or connect, a bare greeting, or a one-token yes/no from the 9B
+(threshold 0.6). A non-owner voice in the last 2 minutes means "others present": only
 the name counts then (inside the window the classifier must also agree). "Laura, stop listening" / "로라 그만
 들어" mutes until "start listening" / "다시 들어". With a profile, barge-in during a reply is verified on 0.8 s of
 speech first. Ignored turns produce `ignored` events (see docs/protocol.md).
-Tests: `tests/speaker_eval.py`, `tests/addressee_eval.py` (+ `addressee_set.jsonl`), `tests/gate_ws_test.py`.
+
+In the car (`context.car`) there is no addressee gate (`car_mode.py`): every owner utterance goes to the 9B, whose
+prompt adds car rules (short answers, talk only when addressed or clearly useful, otherwise reply `<silent>`,
+never say "I wasn't sure that was for me"). The gateway holds the first characters of the reply until it is clear
+she talks; a silent reply is dropped without `user_turn`, `ignored` or a state change, and the utterance is kept
+for 90 s as context so "answer that" works. Mute and the voice check still apply.
+Tests: `tests/test_car_gate.py`, `tests/speaker_eval.py`, `tests/addressee_eval.py` (+ `addressee_set.jsonl`), `tests/gate_ws_test.py`.
 
 GPU: ~6.0 GB idle with all three loaded, ~6.3 GB peak. End of speech -> first reply audio 0.8-1.2 s.
 Tests: `tests/ws_test.py` (WS_URL=wss://...?k=...), `tests/browser_test.js` (Playwright, fake mic).

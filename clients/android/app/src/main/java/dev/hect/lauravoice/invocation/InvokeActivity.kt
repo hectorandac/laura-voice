@@ -79,6 +79,7 @@ class InvokeActivity : Activity() {
 
     private fun start(i: Intent?) {
         val source = i?.getStringExtra(Invocation.EXTRA_SOURCE) ?: i?.action ?: "unknown"
+        if (i?.action == Intent.ACTION_ASSIST) Invocation.markAssist(this)
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             return needsSetup("Laura needs the microphone. Allow it in Laura's settings.")
         }

@@ -13,4 +13,15 @@
             <extra android:name="source" android:value="shortcut" />
         </intent>
     </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutId="settings"
+        android:shortcutLongLabel="@string/settings_long"
+        android:shortcutShortLabel="@string/settings_short">
+        <intent
+            android:action="dev.hect.lauravoice.SETTINGS"
+            android:targetClass="dev.hect.lauravoice.MainActivity"
+            android:targetPackage="dev.hect.lauravoice" />
+    </shortcut>
 </shortcuts>

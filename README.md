@@ -77,7 +77,7 @@ without tools). Details and how each number was measured: [server/README.md](ser
 | `clients/wear/`, `clients/linux/`, `clients/web/` | Wear OS app, headless Linux/Jetson client, browser test client |
 | `hermes/laura_voice/` | Hermes platform plugin: Laura's side of the voice channel |
 | `deploy/` | Dockerfiles, Helm chart (GPU pinning, TLS sidecar with a private CA, network policies), VPN watchdog for the GPU node |
-| `docs/` | [Protocol](docs/protocol.md), [deployment](docs/deployment.md), [runbook](docs/deploy-runbook.md), [Hermes integration](docs/hermes.md), [deep-questions design](docs/deep-questions.md), [small TTS](docs/tts-small.md), [avatar](docs/avatar/concept.md), [app icon](docs/brand/rationale.md) |
+| `docs/` | [Protocol](docs/protocol.md), [deployment](docs/deployment.md), [runbook](docs/deploy-runbook.md), [Hermes integration](docs/hermes.md), [deep-questions design](docs/deep-questions.md), [small TTS](docs/tts-small.md), [avatar](docs/avatar/concept.md), [app icon](docs/brand/README.md) |
 
 ## Running it
 

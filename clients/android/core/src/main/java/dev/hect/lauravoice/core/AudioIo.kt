@@ -58,12 +58,16 @@ interface AudioDevices {
  * stream is the loud one and the one the side buttons/bezel control. [gainDb]: extra reply gain (negative =
  * attenuate with the track volume, positive = LoudnessEnhancer, which also limits peaks). [carMedia]: also use
  * USAGE_MEDIA while it returns true (Android Auto projects the media usage to the car's media channel).
+ * [telecomCall]: a Telecom call of ours is up; Telecom sets the audio mode, the communication device and the call's
+ * audio focus, so the CALL route only picks the voice-communication source and usage and leaves those alone (the
+ * Core-Telecom docs say not to call setCommunicationDevice/startBluetoothSco alongside it).
  */
 class AndroidAudio(
     private val context: Context,
     private val mediaUsage: Boolean = false,
     private val gainDb: () -> Float = { 0f },
     private val carMedia: () -> Boolean = { false },
+    private val telecomCall: () -> Boolean = { false },
 ) : AudioDevices {
     private val playUsage get() = if (mediaUsage || carMedia()) AudioAttributes.USAGE_MEDIA else AudioAttributes.USAGE_ASSISTANT
     private val am = context.getSystemService(AudioManager::class.java)
@@ -135,6 +139,7 @@ class AndroidAudio(
     ).also { live = it }
 
     override fun enter(route: Route) {
+        if (telecomCall()) return
         if (route != Route.CALL) {
             leave()
             return
@@ -158,7 +163,7 @@ class AndroidAudio(
     }
 
     override fun leave() {
-        if (am.mode != AudioManager.MODE_IN_COMMUNICATION) return
+        if (telecomCall() || am.mode != AudioManager.MODE_IN_COMMUNICATION) return
         if (Build.VERSION.SDK_INT >= 31) {
             am.clearCommunicationDevice()
         } else {
@@ -169,6 +174,8 @@ class AndroidAudio(
     }
 
     override fun focus(on: Boolean, route: Route) {
+        // In a Telecom call the call holds focus for the whole call (every other request is refused meanwhile).
+        if (on && telecomCall()) return
         if (on && focusRequest == null) {
             // Transient: music ducks and spoken apps (podcasts) pause only while she talks, and get it back after.
             // willPauseWhenDucked: the system calls focusListener instead of ducking her itself (it never auto-ducks

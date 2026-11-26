@@ -23,6 +23,14 @@ object CarState {
     @Volatile var connected = false
         private set
 
+    private val _call = MutableStateFlow(false)
+    /** A car call is up: Laura is a Telecom call (Android Auto's call screen, the car's hands-free mic and speakers). */
+    val call: StateFlow<Boolean> = _call.asStateFlow()
+
+    fun setCall(on: Boolean) {
+        _call.value = on
+    }
+
     @Volatile var manualOverride: Boolean? = null
         set(v) {
             field = v

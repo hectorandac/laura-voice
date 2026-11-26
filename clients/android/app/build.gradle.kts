@@ -52,4 +52,7 @@ dependencies {
     implementation(libs.coroutines.play)
     implementation(libs.androidx.car.app)
     implementation(libs.androidx.media)
+    implementation(libs.androidx.core.telecom)
+    implementation(libs.androidx.glance.appwidget)
+    testImplementation(libs.junit)
 }

@@ -3,15 +3,9 @@ package dev.hect.lauravoice.overlay
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,13 +14,13 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import dev.hect.lauravoice.settings.SButton
+import dev.hect.lauravoice.settings.SCard
+import dev.hect.lauravoice.settings.SwitchRow
 
 /** Settings section for the floating bubble: on/off and the "Display over other apps" permission. */
 @Composable
@@ -42,23 +36,22 @@ fun OverlaySettings() {
     }
     val permitted = remember(resumes) { LauraOverlay.permitted(ctx) }
 
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Floating Laura over other apps", Modifier.weight(1f), fontSize = 13.sp, color = Color(0xFFB9B4CC))
-            Spacer(Modifier.width(8.dp))
-            Switch(checked = enabled && permitted, onCheckedChange = { on ->
-                if (on && !permitted) explain = true
-                prefs.enabled = on
-                enabled = on
-            })
-        }
-        Text(
+    SCard {
+        SwitchRow(
+            "Float over other apps",
             if (permitted) "While she's on and you leave the app, a small bubble shows her. Tap stops a reply " +
                 "(or opens the app when she's quiet), hold to talk, drag to the × to turn her off."
             else "Needs \"Display over other apps\". Without it she stays in the notification only.",
-            fontSize = 12.sp, color = Color(0xFF8E89A3)
+            enabled && permitted,
+        ) { on ->
+            if (on && !permitted) explain = true
+            prefs.enabled = on
+            enabled = on
+        }
+        if (!permitted) SButton(
+            "Allow display over other apps", { explain = true },
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
         )
-        if (!permitted) OutlinedButton(onClick = { explain = true }, Modifier.fillMaxWidth()) { Text("Allow display over other apps") }
     }
 
     if (explain) AlertDialog(

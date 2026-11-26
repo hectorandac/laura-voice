@@ -2,18 +2,26 @@ package dev.hect.lauravoice
 
 import android.app.Activity
 import android.app.Application
+import android.app.Notification
+import android.content.pm.ServiceInfo
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import dev.hect.lauravoice.car.CarDetector
+import dev.hect.lauravoice.car.LauraCall
 import dev.hect.lauravoice.core.AndroidAudio
 import dev.hect.lauravoice.core.CarState
 import dev.hect.lauravoice.core.ConfigStore
+import dev.hect.lauravoice.core.VoiceCommands
 import dev.hect.lauravoice.core.VoiceEngine
 import dev.hect.lauravoice.core.VoiceServiceBase
 import dev.hect.lauravoice.core.WsConnector
 import dev.hect.lauravoice.overlay.LauraOverlay
+import dev.hect.lauravoice.car.CallNotification
+import dev.hect.lauravoice.widget.WidgetSync
 import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
@@ -28,9 +36,23 @@ class App : Application() {
         CarState.manualOverride = carOverride(carMode)
         // Engine, overlay and watch read car mode through the store, which follows CarState.active (the old "car"
         // pref is no longer read).
-        store = ConfigStore(this).apply { carSource = { CarState.active.value } }
-        engine = VoiceEngine("android", AndroidAudio(this, carMedia = { CarState.connected }), store::load, { WsConnector(it) })
+        store = ConfigStore(this).apply {
+            carSource = { CarState.active.value }
+            carCallSource = { CarState.call.value }
+        }
+        val audio = AndroidAudio(this, carMedia = { CarState.connected }, telecomCall = { CarState.call.value })
+        engine = VoiceEngine("android", audio, store::load, { WsConnector(it) })
+        engine.onCommand = ::command
+        _carCall.value = prefs.getBoolean("car_call", true)
         CarDetector(this).start()
+        LauraCall.start(this)
+        MainScope().launch {
+            CarState.call.drop(1).collect { on ->
+                Log.i("Laura", "car call $on")
+                engine.configChanged()
+            }
+        }
+        WidgetSync.start(this)
         MainScope().launch {
             CarState.active.drop(1).collect { on ->
                 Log.i("Laura", "car mode $on")
@@ -48,6 +70,19 @@ class App : Application() {
             override fun onActivitySaveInstanceState(a: Activity, b: Bundle) {}
             override fun onActivityDestroyed(a: Activity) {}
         })
+    }
+
+    /**
+     * "Open settings" said to Laura. Opening an activity from the background needs "Display over other apps"; without
+     * it (and with no Laura screen showing) she answers the turn as usual instead.
+     */
+    private fun command(cmd: String): Boolean {
+        if (cmd != VoiceCommands.OPEN_SETTINGS || !(visible.value || Settings.canDrawOverlays(this))) return false
+        startActivity(
+            Intent(this, MainActivity::class.java).setAction(MainActivity.ACTION_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        )
+        return true
     }
 
     /** One-time pref migrations for existing installs. */
@@ -88,6 +123,16 @@ class App : Application() {
             else -> null
         }
 
+        private val _carCall = MutableStateFlow(true)
+        /** Car call mode (default on): in the car Laura is a call (`car/LauraCall`). */
+        val carCallFlow: StateFlow<Boolean> = _carCall
+        var carCall: Boolean
+            get() = _carCall.value
+            set(v) {
+                prefs.edit().putBoolean("car_call", v).apply()
+                _carCall.value = v
+            }
+
         /** Developer options unlocked from About. */
         var developer: Boolean
             get() = prefs.getBoolean("developer", false)
@@ -99,6 +144,19 @@ class VoiceService : VoiceServiceBase() {
     override val engine get() = App.engine
     override val activityClass = MainActivity::class.java
     private var overlay: LauraOverlay? = null
+    private val callScope = MainScope()
+
+    private val inCall get() = LauraCall.state.value != LauraCall.State.IDLE
+
+    override fun foregroundTypes(): Int = super.foregroundTypes() or
+        if (inCall) ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL else 0
+
+    override fun overrideNotification(): Notification? = if (inCall) CallNotification.build(this) else null
+
+    override fun onCreate() {
+        super.onCreate()
+        callScope.launch { LauraCall.state.drop(1).collect { promote() } }
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val r = super.onStartCommand(intent, flags, startId)
@@ -112,6 +170,7 @@ class VoiceService : VoiceServiceBase() {
     }
 
     override fun onDestroy() {
+        callScope.cancel()
         overlay?.stop()
         overlay = null
         super.onDestroy()

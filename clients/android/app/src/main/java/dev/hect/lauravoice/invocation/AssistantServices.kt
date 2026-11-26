@@ -43,6 +43,7 @@ class LauraSession(ctx: Context) : VoiceInteractionSession(ctx) {
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         Invocation.attach(this)
+        Invocation.markAssist(context)
         runCatching { startAssistantActivity(Invocation.intent(context, "assistant")) }
             .onFailure {
                 Log.w(TAG, "startAssistantActivity", it)

@@ -1,0 +1,304 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Noto+Sans+KR:wght@400;500&display=block" rel="stylesheet">
+<style>
+/* Laura widget tokens: Raycast's dark-tool chrome (flat surface ladder, 1 dp hairlines, one solid pill CTA,
+   keycap chips) recoloured with the D5 icon palette (plum hair, wine outline, apricot cream plate). */
+:root {
+  --font: Roboto, 'Noto Sans KR', system-ui, sans-serif;
+}
+.dark {
+  --surface: #1A1320; --raised: #251B2D; --hair: rgba(255,255,255,.09); --hair-strong: rgba(255,255,255,.16);
+  --ink: #F7EEE9; --body: #D8C9CF; --mute: #A08F9C;
+  --cta: #FFC98F; --on-cta: #3A1626; --btn: #2C2134; --on-btn: #F7EEE9;
+  --listen: #5ED3C0; --think: #FFB04A; --speak: #FF9E7A; --idle: #B9A6FF; --off: #857684; --bad: #FF7A7A;
+  --claude: #E9A0B4; --local: #5ED3C0;
+}
+.light {
+  --surface: #FFF6EE; --raised: #FCEADB; --hair: rgba(58,22,38,.10); --hair-strong: rgba(58,22,38,.18);
+  --ink: #2B1622; --body: #4E3743; --mute: #8A7380;
+  --cta: #68243D; --on-cta: #FFF1E2; --btn: #F6E2D2; --on-btn: #2B1622;
+  --listen: #128373; --think: #B76A00; --speak: #C2513A; --idle: #6A4FC9; --off: #998894; --bad: #C62F2F;
+  --claude: #9A3A5A; --local: #128373;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; font-family: var(--font); -webkit-font-smoothing: antialiased; }
+body.board { background: #EDE6E2; color: #2B1622; padding: 28px 32px 32px; }
+body.board.night { background: #0B090E; color: #EDE6E2; }
+.board h1 { font: 500 22px/1.2 var(--font); margin: 0 0 4px; letter-spacing: .2px; }
+.board .sub { font: 400 13px/1.5 var(--font); opacity: .7; margin: 0 0 20px; max-width: 980px; }
+.board h2 { font: 500 13px/1 var(--font); text-transform: uppercase; letter-spacing: 1.2px; opacity: .6; margin: 22px 0 12px; }
+.row { display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap; }
+.cap { font: 400 12px/1.4 var(--font); opacity: .65; margin-top: 8px; max-width: 344px; }
+.cap b { font-weight: 500; opacity: 1; }
+
+/* ---------- widget ---------- */
+.w { background: var(--surface); border: 1px solid var(--hair); border-radius: 24px; color: var(--ink); position: relative; overflow: hidden; }
+.face { display: block; object-fit: contain; }
+.halo { display: block; border-radius: 50%; background: radial-gradient(closest-side, var(--halo) 0, var(--halo) 35%, transparent 100%); }
+.dark { --halo: rgba(255,201,143,.20); } .light { --halo: rgba(255,201,143,.0); }
+.tile { border-radius: 16px; object-fit: cover; }
+.iconplate { border-radius: 50%; background: radial-gradient(#FFF1E2, #FFD9A8); }
+.t-title { font: 500 15px/1.2 var(--font); letter-spacing: .1px; }
+.t-status { font: 500 13px/1.2 var(--font); display: flex; align-items: center; gap: 6px; }
+.t-meta { font: 400 12px/1.3 var(--font); color: var(--mute); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 7px;
+  background: var(--raised); border: 1px solid var(--hair); font: 500 12px/1 var(--font); color: var(--body); }
+.cta { display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 20px;
+  background: var(--cta); color: var(--on-cta); font: 500 14px/1 var(--font); letter-spacing: .2px; }
+.btn { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 20px;
+  background: var(--btn); border: 1px solid var(--hair); color: var(--on-btn); flex: none; }
+.btn.on { background: var(--raised); color: var(--bad); }
+.btn svg, .cta svg { width: 20px; height: 20px; }
+.card { background: var(--raised); border: 1px solid var(--hair); border-radius: 16px; padding: 10px 12px; }
+.reply { font: 400 14px/1.42 var(--font); color: var(--body); display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; }
+.reply.hidden { color: var(--mute); font-style: normal; display: flex; align-items: center; gap: 8px; }
+.ring { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--c); border: 3px solid var(--surface); }
+
+/* ---------- phone ---------- */
+.phone { width: 360px; height: 800px; position: relative; overflow: hidden; color: #fff; }
+.status { position: absolute; top: 0; left: 0; right: 0; height: 34px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px 0 24px; font: 500 13px/1 var(--font); z-index: 3; }
+.status .r { display: flex; gap: 6px; align-items: center; }
+.grid { position: absolute; left: 8px; right: 8px; top: 52px; display: grid; grid-template-columns: repeat(4, 86px); grid-auto-rows: 112px; gap: 0; }
+.cell { display: flex; align-items: center; justify-content: center; }
+.app { display: flex; flex-direction: column; align-items: center; gap: 7px; font: 400 12px/1 var(--font); text-shadow: 0 1px 2px rgba(0,0,0,.45); }
+.app i { width: 54px; height: 54px; border-radius: 17px; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+.app i svg { width: 28px; height: 28px; }
+.dock { position: absolute; left: 8px; right: 8px; bottom: 30px; display: grid; grid-template-columns: repeat(4, 86px); }
+.dock .app span { display: none; }
+.navbar { position: absolute; bottom: 9px; left: 50%; width: 120px; height: 4px; margin-left: -60px; border-radius: 2px; background: rgba(255,255,255,.75); }
+.dots { position: absolute; bottom: 118px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
+.dots b { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,.5); }
+.dots b.on { background: #fff; }
+.wallpaper { position: absolute; inset: 0; }
+.wp-dark { background:
+  radial-gradient(120% 70% at 12% 8%, #3F2A63 0, transparent 55%),
+  radial-gradient(90% 60% at 95% 45%, #5A2340 0, transparent 60%),
+  radial-gradient(110% 70% at 30% 100%, #1B2F52 0, transparent 60%), #0E0B15; }
+.wp-busy { background:
+  radial-gradient(70% 45% at 80% 15%, #F2B36B 0, transparent 60%),
+  radial-gradient(80% 60% at 0% 40%, #2E8C83 0, transparent 60%),
+  radial-gradient(90% 60% at 100% 85%, #7B3F9E 0, transparent 60%),
+  linear-gradient(170deg, #E07A5F, #3D5A80 60%, #293241); }
+.lock .clock { position: absolute; top: 96px; left: 0; right: 0; text-align: center; font: 300 84px/1 var(--font); letter-spacing: -2px; }
+.lock .date { position: absolute; top: 72px; left: 0; right: 0; text-align: center; font: 500 15px/1 var(--font); }
+.lock .lk { position: absolute; bottom: 40px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 36px; }
+.lock .lk i { width: 48px; height: 48px; border-radius: 24px; background: rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; }
+.lock .lk svg { width: 24px; height: 24px; }
+
+/* ---------- configure screen ---------- */
+.cfg { background: #120D16; color: #F7EEE9; }
+.cfg .top { display: flex; align-items: center; gap: 16px; padding: 34px 16px 0; height: 90px; font: 500 20px/1 var(--font); }
+.cfg .pv { margin: 8px 16px 0; height: 214px; border-radius: 24px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+.cfg .sec { font: 500 12px/1 var(--font); text-transform: uppercase; letter-spacing: 1.1px; color: #A08F9C; margin: 18px 20px 8px; }
+.cfg .seg { margin: 0 16px; display: flex; background: #1D1523; border: 1px solid rgba(255,255,255,.09); border-radius: 12px; padding: 3px; gap: 3px; }
+.cfg .seg span { flex: 1; text-align: center; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 9px; font: 500 13px/1 var(--font); color: #D8C9CF; }
+.cfg .seg span.on { background: #FFC98F; color: #3A1626; }
+.cfg .opt { margin: 0 16px; display: flex; align-items: center; justify-content: space-between; padding: 12px 4px; border-bottom: 1px solid rgba(255,255,255,.07); }
+.cfg .opt .l { font: 400 15px/1.25 var(--font); }
+.cfg .opt .d { font: 400 12px/1.35 var(--font); color: #A08F9C; margin-top: 3px; max-width: 250px; }
+.sw { width: 44px; height: 26px; border-radius: 13px; background: #3A2E40; position: relative; flex: none; }
+.sw::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 10px; background: #A08F9C; }
+.sw.on { background: #FFC98F; } .sw.on::after { left: 21px; background: #3A1626; }
+.cfg .faces { margin: 0 16px; display: flex; gap: 10px; }
+.cfg .faces div { flex: 1; height: 86px; border-radius: 14px; border: 1px solid rgba(255,255,255,.09); background: #1D1523; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font: 500 12px/1 var(--font); color: #D8C9CF; }
+.cfg .faces div.on { border: 2px solid #FFC98F; }
+.cfg .done { position: absolute; left: 16px; right: 16px; bottom: 30px; height: 48px; border-radius: 24px; background: #FFC98F; color: #3A1626; display: flex; align-items: center; justify-content: center; font: 500 15px/1 var(--font); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+const RES = '../../../../clients/android/app/src/main/res/';
+const FACE = {
+  live: s => RES + 'drawable-nodpi/widget_face_' + s + '.webp',
+  tile: s => RES + 'drawable-nodpi/car_art_' + s + '.png',
+  icon: s => RES + 'drawable-xxxhdpi/ic_launcher_foreground.png',
+};
+const I = {
+  mic: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>',
+  micoff: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 11h-2c0 .74-.16 1.43-.43 2.05l1.23 1.23A6.9 6.9 0 0 0 19 11zm-4 .16V5a3 3 0 0 0-5.94-.6L15 10.34v.82zM4.27 3 3 4.27l6 6V11a3 3 0 0 0 4.38 2.65l1.66 1.66A5 5 0 0 1 7 11H5a7 7 0 0 0 6 6.92V21h2v-3.08a6.9 6.9 0 0 0 3.27-1.26L19.73 21 21 19.73 4.27 3z"/></svg>',
+  open: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6v2h8.59L5 17.59 6.41 19 16 9.41V18h2V6z"/></svg>',
+  lock: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2zm-5 9a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm3.1-9H8.9V6a3.1 3.1 0 0 1 6.2 0v2z"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>',
+};
+// what each engine state shows (the app maps UiState onto these keys)
+const ST = {
+  idle:      { face: 'idle',      c: '--idle',   label: 'Ready',          meta: 'Push-to-talk · tap to talk' },
+  listening: { face: 'listening', c: '--listen', label: 'Listening',      meta: 'Hands-free' },
+  thinking:  { face: 'thinking',  c: '--think',  label: 'Thinking…',      meta: 'Claude Sonnet 5.5 · via Hermes' },
+  speaking:  { face: 'speaking',  c: '--speak',  label: 'Speaking',       meta: 'Claude Sonnet 5.5 · via Hermes' },
+  muted:     { face: 'sleeping',  c: '--off',    label: 'Muted',          meta: 'Not sending audio' },
+  off:       { face: 'sleeping',  c: '--off',    label: 'Off',            meta: 'Tap to talk' },
+  offline:   { face: 'offline',   c: '--off',    label: 'Connecting…',    meta: 'Gateway unreachable, retrying' },
+  error:     { face: 'error',     c: '--bad',    label: 'Needs setup',    meta: 'Open Laura to fix the connection' },
+};
+const REPLY = {
+  claude: { src: 'Claude Sonnet 5.5 · via Hermes', kind: 'claude', time: '14:02',
+    text: 'Your 3 pm with Minji moved to 4:30, and the train back is at 18:12 from platform 4. Want me to set a reminder for 17:45?' },
+  local: { src: 'Local · Bonsai 9B', kind: 'local', time: '09:41',
+    text: '네, 지금 서울은 맑고 12도예요. 오후에는 바람이 조금 불 거예요.' },
+};
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function faceImg(o, size) {
+  const st = ST[o.state], style = o.faceStyle || 'live';
+  if (style === 'tile') return `<img class="face tile" src="${FACE.tile(st.face)}" style="width:${size}px;height:${size}px">`;
+  if (style === 'icon') return `<span class="iconplate" style="width:${size}px;height:${size}px;display:block;overflow:hidden"><img class="face" src="${FACE.icon()}" style="width:${size * 1.5}px;height:${size * 1.5}px;margin:${-size * .25}px"></span>`;
+  return `<span class="halo" style="width:${size}px;height:${size}px"><img class="face" src="${FACE.live(st.face)}" style="width:${size}px;height:${size}px"></span>`;
+}
+const status = (o) => { const st = ST[o.state]; return `<div class="t-status" style="--c:var(${st.c})"><span class="dot"></span>${st.label}</div>`; };
+function metaFor(o) {
+  const st = ST[o.state];
+  if ((o.state === 'speaking' || o.state === 'thinking') && o.reply) return REPLY[o.reply].src;
+  return st.meta;
+}
+function actions(o, compact) {
+  const active = !['off', 'error'].includes(o.state);
+  const talk = `<div class="cta" style="flex:1">${I.mic}Talk</div>`;
+  const mute = active ? `<div class="btn ${o.state === 'muted' ? 'on' : ''}">${o.state === 'muted' ? I.micoff : I.micoff}</div>` : '';
+  const open = `<div class="btn">${I.open}</div>`;
+  return `<div style="display:flex;gap:8px;align-items:center">${talk}${mute}${open}</div>`;
+}
+// size: 1x1 | 2x1 | 2x2 | 4x2 | 4x3   (dp at 360 dp width, One UI 4x5 grid)
+const DIM = { '1x1': [74, 74], '2x1': [164, 80], '2x2': [164, 196], '4x2': [336, 196], '4x3': [336, 300] };
+function widget(o) {
+  const [w, h] = DIM[o.size], th = o.theme || 'dark';
+  let inner = '';
+  if (o.size === '1x1') {
+    inner = `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">${faceImg(o, 66)}</div>
+      <span class="ring" style="--c:var(${ST[o.state].c});right:6px;bottom:6px"></span>`;
+  } else if (o.size === '2x1') {
+    inner = `<div style="display:flex;align-items:center;height:100%;padding:0 14px 0 4px;gap:4px">${faceImg(o, 68)}
+      <div style="flex:1;min-width:0"><div class="t-title" style="display:flex;align-items:center;gap:4px">Laura</div><div style="margin-top:6px">${status(o)}</div></div></div>`;
+  } else if (o.size === '2x2') {
+    inner = `<div style="position:absolute;top:12px;left:14px;right:14px;display:flex;justify-content:space-between;align-items:center">${status(o)}</div>
+      <div style="position:absolute;top:34px;left:0;right:0;display:flex;justify-content:center">${faceImg(o, 108)}</div>
+      <div style="position:absolute;left:12px;right:12px;bottom:12px"><div class="cta">${I.mic}Talk</div></div>`;
+  } else {
+    const big = o.size === '4x3';
+    const fs = big ? 96 : 128;
+    const head = `<div style="display:flex;gap:${big ? 10 : 12}px;align-items:${big ? 'center' : 'flex-start'}">
+        <div style="flex:none;margin:${big ? '-6px 0 -6px -8px' : '-4px 0 0 -8px'}">${faceImg(o, fs)}</div>
+        <div style="flex:1;min-width:0;padding-top:${big ? 0 : 14}px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div class="t-title">Laura</div>${o.state === 'muted' ? '' : ''}</div>
+          <div style="margin-top:8px">${status(o)}</div>
+          <div class="t-meta" style="margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(metaFor(o))}</div>
+        </div></div>`;
+    let card = '';
+    if (big) {
+      const r = REPLY[o.reply || 'claude'];
+      let body;
+      if (o.privacy === 'hidden') body = `<div class="reply hidden">${I.lock.replace('<svg', '<svg style="width:16px;height:16px;flex:none"')}Reply hidden on the lock screen</div>`;
+      else if (o.privacy === 'who') body = `<div class="reply hidden">Reply text hidden</div>`;
+      else body = `<div class="reply" style="-webkit-line-clamp:3">${esc(r.text)}</div>`;
+      card = `<div class="card" style="margin-top:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="chip"><span class="dot" style="--c:var(--${r.kind})"></span>${esc(r.src.replace(' · via Hermes', ''))}</span>
+          <span class="t-meta">${r.time}</span></div>${body}</div>`;
+    }
+    inner = `<div style="position:absolute;inset:0;padding:${big ? 14 : 14}px 14px 14px;display:flex;flex-direction:column">
+      ${head}${card}<div style="flex:1"></div>${actions(o)}</div>`;
+  }
+  return `<div class="w ${th}" style="width:${w}px;height:${h}px">${inner}</div>`;
+}
+
+// ---------- home screen pieces ----------
+const APPS = [
+  ['#3DDC84', '#0B3D20', '<path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/>', 'Phone'],
+  ['#4C8DF6', '#fff', '<path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/>', 'Messages'],
+  ['#F4F1EC', '#4A4A4A', '<path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm8-4h-3.2L15 3H9L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm-8 13a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>', 'Camera'],
+  ['#FFFFFF', '#E25C47', '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>', 'Clock'],
+  ['#F7B93E', '#fff', '<path d="M21 19V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2zM8.5 13.5l2.5 3 3.5-4.5 4.5 6H5l3.5-4.5z"/>', 'Gallery'],
+  ['#5F6368', '#fff', '<path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3h-4l-.4 2.6a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1L11 21h4l.4-2.6a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/>', 'Settings'],
+  ['#1F8A70', '#fff', '<path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/>', 'Maps'],
+  ['#E8445A', '#fff', '<path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>', 'Music'],
+  ['#7B61FF', '#fff', '<path d="M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm-7 14H7v-2h5v2zm5-4H7v-2h10v2zm0-4H7V7h10v2z"/>', 'Notes'],
+  ['#2B2B2B', '#fff', '<circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3"/>', 'Browser'],
+  ['#FFD54A', '#5A4300', '<path d="M3 5h18v14H3z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 6l9 7 9-7" fill="none" stroke="currentColor" stroke-width="2"/>', 'Mail'],
+  ['#34A3E0', '#fff', '<path d="M6 19a4 4 0 0 1-.6-7.96A6 6 0 0 1 17 9a5 5 0 0 1 1 9.9V19z"/>', 'Weather'],
+];
+const app = (i, label = true) => { const [bg, fg, p, n] = APPS[i % APPS.length];
+  return `<div class="app"><i style="background:${bg};color:${fg}"><svg viewBox="0 0 24 24" fill="currentColor">${p}</svg></i>${label ? `<span>${n}</span>` : ''}</div>`; };
+const statusBar = (dark) => `<div class="status" style="color:${dark ? '#fff' : '#2B1622'}"><span>14:03</span><span class="r">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21 1 8.5a15.6 15.6 0 0 1 22 0z"/></svg>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2 22h20V2z"/></svg>
+  <svg width="22" height="14" viewBox="0 0 26 14"><rect x=".5" y=".5" width="22" height="13" rx="3" fill="none" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="15" height="9" rx="1.5" fill="currentColor"/><rect x="23.5" y="4.5" width="2" height="5" rx="1" fill="currentColor" opacity=".5"/></svg></span></div>`;
+// place: [col, row, colspan, rowspan, html]
+function home(wp, items, opts = {}) {
+  const cells = items.map(([c, r, cs, rs, h]) => `<div class="cell" style="grid-column:${c + 1}/span ${cs};grid-row:${r + 1}/span ${rs}">${h}</div>`).join('');
+  return `<div class="phone ${opts.lightui ? 'lightui' : ''}"><div class="wallpaper ${wp.cls || ''}" style="${wp.css || ''}">${wp.svg || ''}</div>
+    ${statusBar(!opts.lightui)}<div class="grid">${cells}</div>
+    <div class="dots"><b></b><b class="on"></b><b></b></div>
+    <div class="dock">${[0, 1, 9, 2].map(i => `<div class="cell">${app(i, false)}</div>`).join('')}</div><div class="navbar"></div></div>`;
+}
+const SUNRISE = { css: 'background: linear-gradient(180deg, #F7D6C6 0%, #F9E3D2 30%, #FCEFE2 46%, #F2C9A8 62%, #D99A86 100%)',
+  svg: `<svg viewBox="0 0 360 800" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%">
+    <circle cx="250" cy="372" r="46" fill="#FFF4E4" opacity=".9"/>
+    <path d="M0 470 L60 420 L110 450 L170 380 L230 440 L290 400 L360 450 L360 800 L0 800Z" fill="#C98E93" opacity=".55"/>
+    <path d="M0 540 L50 500 L120 530 L190 470 L260 520 L320 490 L360 510 L360 800 L0 800Z" fill="#9E6A84" opacity=".7"/>
+    <path d="M0 620 L80 580 L150 610 L220 560 L300 600 L360 580 L360 800 L0 800Z" fill="#6E4A6E" opacity=".85"/>
+    <path d="M0 700 L90 670 L170 690 L260 650 L360 680 L360 800 L0 800Z" fill="#432E4F"/></svg>` };
+
+const B = {};
+B['01-home-dark-4x2'] = () => home({ cls: 'wp-dark' }, [
+  [0, 0, 4, 2, widget({ size: '4x2', state: 'speaking', reply: 'local', theme: 'dark' }).replace('Claude Sonnet 5.5 · via Hermes', 'Local · Bonsai 9B')],
+  [0, 2, 1, 1, app(4)], [1, 2, 1, 1, app(6)], [2, 2, 1, 1, app(7)], [3, 2, 1, 1, app(8)],
+  [0, 3, 1, 1, app(10)], [1, 3, 1, 1, app(11)], [2, 3, 1, 1, app(3)], [3, 3, 1, 1, app(5)],
+  [0, 4, 1, 1, app(9)], [1, 4, 1, 1, app(1)], [2, 4, 1, 1, app(0)], [3, 4, 1, 1, app(2)],
+]);
+B['02-home-light-4x3'] = () => home(SUNRISE, [
+  [0, 0, 4, 3, widget({ size: '4x3', state: 'speaking', reply: 'claude', theme: 'light' })],
+  [0, 3, 1, 1, app(4)], [1, 3, 1, 1, app(6)], [2, 3, 1, 1, app(7)], [3, 3, 1, 1, app(8)],
+  [0, 4, 1, 1, app(10)], [1, 4, 1, 1, app(11)], [2, 4, 1, 1, app(3)], [3, 4, 1, 1, app(5)],
+], { lightui: true });
+B['03-home-small-sizes'] = () => home({ cls: 'wp-busy' }, [
+  [0, 0, 2, 2, widget({ size: '2x2', state: 'listening', theme: 'dark' })], [2, 0, 1, 1, app(4)], [3, 0, 1, 1, app(6)], [2, 1, 1, 1, app(7)], [3, 1, 1, 1, app(8)],
+  [0, 2, 2, 1, widget({ size: '2x1', state: 'idle', theme: 'light' })], [2, 2, 1, 1, app(10)], [3, 2, 1, 1, widget({ size: '1x1', state: 'thinking', theme: 'dark' })],
+  [0, 3, 1, 1, app(11)], [1, 3, 1, 1, app(3)], [2, 3, 1, 1, app(5)], [3, 3, 1, 1, app(9)],
+  [0, 4, 1, 1, app(1)], [1, 4, 1, 1, app(0)], [2, 4, 1, 1, app(2)], [3, 4, 1, 1, app(6)],
+]);
+B['04-lock-private'] = () => `<div class="phone lock"><div class="wallpaper wp-dark"></div>${statusBar(true)}
+  <div class="date">Thu, 26 November</div><div class="clock">14:03</div>
+  <div style="position:absolute;top:232px;left:12px">${widget({ size: '4x3', state: 'idle', reply: 'claude', privacy: 'hidden', theme: 'dark' }).replace('Push-to-talk · tap to talk', 'Hands-free · last reply 14:02')}</div>
+  <div class="lk"><i>${I.mic.replace('<svg', '<svg style="color:#fff"')}</i><i><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm8-4h-3.2L15 3H9L7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/></svg></i></div><div class="navbar"></div></div>`;
+B['07-configure'] = () => `<div class="phone cfg">${statusBar(true)}
+  <div class="top"><svg width="24" height="24" viewBox="0 0 24 24" fill="#F7EEE9"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg><span style="flex:1">Laura widget</span><span style="font:500 15px/1 var(--font);color:#3A1626;background:#FFC98F;border-radius:18px;padding:10px 18px">Done</span></div>
+  <div class="pv wp-dark">${widget({ size: '4x2', state: 'listening', theme: 'dark' })}</div>
+  <div class="sec">Theme</div><div class="seg"><span class="on">Auto</span><span>Light</span><span>Dark</span></div>
+  <div class="sec">Face</div><div class="faces">
+    <div class="on">${faceImg({ state: 'idle' }, 52)}Live</div><div>${faceImg({ state: 'idle', faceStyle: 'tile' }, 46)}Tile</div><div>${faceImg({ state: 'idle', faceStyle: 'icon' }, 46)}Icon</div></div>
+  <div class="sec">Content</div>
+  <div class="opt"><div><div class="l">Face only</div><div class="d">Just her face at any size. Tap still talks.</div></div><span class="sw"></span></div>
+  <div class="opt"><div><div class="l">Last reply</div><div class="d">Shows her latest answer and who gave it (4x3 and larger)</div></div><span class="sw on"></span></div>
+  <div class="opt"><div><div class="l">Hide reply text</div><div class="d">Keep who answered, hide what she said. Always on for lock screen widgets.</div></div><span class="sw"></span></div>
+  <div class="navbar"></div></div>`;
+
+B['pv-card'] = () => `<div style="padding:0">${widget({ size: '4x2', state: 'listening', theme: 'dark' })}</div>`;
+B['pv-talk'] = () => `<div style="padding:0">${widget({ size: '2x1', state: 'idle', theme: 'dark' })}</div>`;
+const ORDER = ['off', 'idle', 'listening', 'thinking', 'speaking', 'muted', 'offline', 'error'];
+B['05-states'] = () => {
+  const row = th => `<div class="row">${ORDER.map(s => `<div>${widget({ size: '4x2', state: s, theme: th, reply: 'claude' })}<div class="cap"><b>${s}</b> · face <code>${ST[s].face}</code></div></div>`).join('')}</div>`;
+  return `<h1>Laura widget · states</h1><p class="sub">Each state is a pre-rendered still of the real 3D avatar (the app's own renderer, 3/4 view, transparent). The widget only changes when the state, mute or the last reply changes: no polling, no animation, nothing while the screen is off.</p>
+  <h2>Dark</h2>${row('dark')}<h2>Light</h2>${row('light')}`;
+};
+B['06-sizes-faces'] = () => {
+  const sizes = th => `<div class="row" style="align-items:flex-end">${['1x1', '2x1', '2x2', '4x2', '4x3'].map(s => `<div>${widget({ size: s, state: s === '4x3' ? 'speaking' : s === '1x1' ? 'idle' : 'listening', theme: th, reply: 'claude' })}<div class="cap"><b>${s}</b></div></div>`).join('')}</div>`;
+  const faces = `<div class="row">${['live', 'tile', 'icon'].map(f => `<div>${widget({ size: '2x2', state: 'listening', theme: 'dark', faceStyle: f })}<div class="cap"><b>${f}</b></div></div>`).join('')}
+    ${['live', 'tile', 'icon'].map(f => `<div>${widget({ size: '2x2', state: 'listening', theme: 'light', faceStyle: f })}<div class="cap"><b>${f}</b></div></div>`).join('')}</div>`;
+  const priv = `<div class="row">${[['shown', undefined], ['hide reply text', 'who'], ['lock screen', 'hidden']].map(([n, p]) => `<div>${widget({ size: '4x3', state: 'idle', theme: 'dark', reply: 'local', privacy: p })}<div class="cap"><b>${n}</b></div></div>`).join('')}</div>`;
+  return `<h1>Laura widget · sizes, faces, privacy</h1><p class="sub">One resizable widget, five responsive layouts. Tap the face or Talk: the same entry point as the side key (InvokeActivity). 1x1 and 2x1 are tap-to-talk only; 2x2 adds the state; 4x2 adds who is answering and Mute / Open; 4x3 adds her last reply.</p>
+    <h2>Sizes · dark</h2>${sizes('dark')}<h2>Sizes · light</h2>${sizes('light')}<h2>Face styles</h2>${faces}<h2>Reply privacy</h2>${priv}`;
+};
+
+const q = new URLSearchParams(location.search), b = q.get('b');
+if (b.startsWith('pv')) { document.body.style.background = 'transparent'; }
+else if (b.startsWith('0') && !['05-states', '06-sizes-faces'].includes(b)) { document.body.style.background = '#000'; }
+else { document.body.className = 'board' + (q.get('night') ? ' night' : ''); }
+document.getElementById('root').innerHTML = B[b]();
+</script>
+</body>
+</html>
