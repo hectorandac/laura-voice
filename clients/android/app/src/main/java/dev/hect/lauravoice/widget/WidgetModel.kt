@@ -10,24 +10,31 @@ data class WidgetModel(
     /** Second line: who is answering, the mode, or what to do. */
     val meta: String = WState.OFF.meta,
     val reply: Reply? = null,
+    /** She is on (the voice service runs), so the widget offers End in place of Talk. */
+    val on: Boolean = state.on,
 ) {
     val face: String get() = state.face
     val canMute: Boolean get() = state.canMute
     val muted: Boolean get() = state == WState.MUTED
+    /** The main control: End while she is on, Talk otherwise. Tapping her face is always Talk. */
+    val primary: Primary get() = if (on) Primary.END else Primary.TALK
 }
+
+enum class Primary { TALK, END }
 
 data class Reply(val text: String, val source: String, val local: Boolean, val time: Long)
 
-enum class WState(val label: String, val face: String, val tone: Tone, val meta: String, val canMute: Boolean) {
-    OFF("Off", "sleeping", Tone.OFF, "Tap to talk", false),
-    IDLE("Ready", "idle", Tone.IDLE, "Push-to-talk · tap to talk", true),
-    LISTENING("Listening", "listening", Tone.LISTEN, "Hands-free", true),
-    THINKING("Thinking…", "thinking", Tone.THINK, "Working on it", true),
-    SPEAKING("Speaking", "speaking", Tone.SPEAK, "", true),
-    MUTED("Muted", "sleeping", Tone.OFF, "Not sending audio", true),
-    ELSEWHERE("In use elsewhere", "idle", Tone.OFF, "Tap to take it back", false),
-    OFFLINE("Connecting…", "offline", Tone.OFF, "Gateway unreachable, retrying", true),
-    ERROR("Needs setup", "error", Tone.BAD, "Open Laura to fix the connection", false),
+enum class WState(val label: String, val face: String, val tone: Tone, val meta: String, val canMute: Boolean, val on: Boolean) {
+    OFF("Off", "sleeping", Tone.OFF, "Tap to talk", false, false),
+    IDLE("Ready", "idle", Tone.IDLE, "Push-to-talk · tap to talk", true, true),
+    LISTENING("Listening", "listening", Tone.LISTEN, "Hands-free", true, true),
+    THINKING("Thinking…", "thinking", Tone.THINK, "Working on it", true, true),
+    SPEAKING("Speaking", "speaking", Tone.SPEAK, "", true, true),
+    MUTED("Muted", "sleeping", Tone.OFF, "Not sending audio", true, true),
+    ELSEWHERE("In use elsewhere", "idle", Tone.OFF, "Tap to take it back", false, true),
+    OFFLINE("Connecting…", "offline", Tone.OFF, "Gateway unreachable, retrying", true, true),
+    // on or off: a bad key or certificate can be shown while the service still runs
+    ERROR("Needs setup", "error", Tone.BAD, "Open Laura to fix the connection", false, false),
 }
 
 enum class Tone { OFF, IDLE, LISTEN, THINK, SPEAK, BAD }
@@ -54,7 +61,7 @@ object WidgetModels {
             WState.IDLE -> if (ptt) s.meta else "Hands-free · tap to talk"
             else -> s.meta
         }
-        return WidgetModel(s, meta, reply)
+        return WidgetModel(s, meta, reply, on = s.on || (s == WState.ERROR && ui.active))
     }
 
     /** The newest assistant reply in the conversation, if any; [timeOf] gives a stable time per turn. */

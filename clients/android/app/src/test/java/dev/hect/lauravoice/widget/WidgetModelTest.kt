@@ -8,6 +8,7 @@ import dev.hect.lauravoice.core.View
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WidgetModelTest {
@@ -27,6 +28,40 @@ class WidgetModelTest {
         assertEquals(WState.THINKING, state(on.copy(view = View.THINKING)))
         assertEquals(WState.SPEAKING, state(on.copy(view = View.SPEAKING, muted = true)))
         assertEquals(WState.IDLE, state(on.copy(view = View.IDLE), ptt = true))
+    }
+
+    private fun model(ui: UiState, configured: Boolean = true) = WidgetModels.from(ui, configured, false, null)
+
+    @Test fun endWhileOn() {
+        for (ui in listOf(on, on.copy(view = View.THINKING), on.copy(view = View.SPEAKING), on.copy(muted = true, view = View.IDLE),
+            on.copy(conn = Conn.CONNECTING), on.copy(conn = Conn.ELSEWHERE), on.copy(view = View.IDLE))) {
+            val m = model(ui)
+            assertTrue("${m.state}", m.on)
+            assertEquals("${m.state}", Primary.END, m.primary)
+        }
+    }
+
+    @Test fun talkWhileOff() {
+        val m = model(UiState())
+        assertEquals(WState.OFF, m.state)
+        assertFalse(m.on)
+        assertEquals(Primary.TALK, m.primary)
+        // after End the engine reports inactive (it may still say ONLINE for a moment): Talk again
+        assertEquals(Primary.TALK, model(on.copy(active = false)).primary)
+    }
+
+    @Test fun errorOffersEndOnlyWhileTheServiceRuns() {
+        assertEquals(Primary.TALK, model(UiState(conn = Conn.BAD_KEY)).primary)
+        assertEquals(Primary.TALK, model(UiState(), configured = false).primary)
+        val m = model(on.copy(conn = Conn.CERT))
+        assertEquals(WState.ERROR, m.state)
+        assertEquals(Primary.END, m.primary)
+    }
+
+    @Test fun demoModelsFollowTheirState() {
+        assertEquals(Primary.END, WidgetModel(WState.SPEAKING).primary)
+        assertEquals(Primary.TALK, WidgetModel(WState.OFF).primary)
+        assertEquals(Primary.TALK, WidgetModel(WState.ERROR).primary)
     }
 
     @Test fun speakingShowsWhoAnswers() {

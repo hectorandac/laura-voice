@@ -138,6 +138,29 @@ object Invocation {
         if (App.engine.active && !_presenting.value) main.postDelayed(::clearLeaving, 100) else _leaving.value = false
     }
 
+    /**
+     * End from the home screen widget, without any activity: stops her reply and turns her off, whether an
+     * invocation or the app turned her on (an invocation's service would stop now anyway, so the mic is released
+     * at once instead of after the quiet timeout).
+     */
+    fun end(ctx: Context, reason: String) {
+        val app = ctx.applicationContext
+        appCtx = app
+        Log.i(TAG, "ended: $reason (presenting=${_presenting.value}, ephemeral=$ephemeral)")
+        App.engine.stopReply()
+        val wasPresenting = _presenting.value
+        forget()
+        if (wasPresenting) {
+            _leaving.value = true
+            clearLeaving()
+        }
+        runCatching { VoiceServiceBase.stop(app, VoiceService::class.java, reason) }.onFailure {
+            // no service to talk to: the engine alone still holds the mic
+            Log.w(TAG, "service stop failed", it)
+            App.engine.deactivate(reason)
+        }
+    }
+
     /** Laura was turned off some other way (bubble ×, notification): nothing left to stop. */
     fun forget() {
         ephemeral = false

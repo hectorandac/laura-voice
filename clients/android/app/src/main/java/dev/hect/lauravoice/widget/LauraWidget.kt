@@ -60,7 +60,9 @@ import dev.hect.lauravoice.invocation.Invocation
 
 /**
  * Laura on the home screen. One responsive widget: 1x1 face, 2x1 face + state, 2x2 face + Talk, 4x2 adds who is
- * answering with Mute and Open, 4x3 adds her last reply. Talk goes through [Invocation] like the side key.
+ * answering with Mute and Open, 4x3 adds her last reply. Talk goes through [Invocation] like the side key. While she
+ * is on, the Talk pill (2x2 and up) and a round button on the 2x1 pill turn her off instead ([EndAction]); her face
+ * stays Talk.
  * The content follows [WidgetSync.model]; nothing here polls or animates.
  */
 open class LauraWidget : GlanceAppWidget() {
@@ -84,6 +86,8 @@ open class LauraWidget : GlanceAppWidget() {
     companion object {
         /** Layout thresholds: narrower than PILL_W is the face, lower than SQUARE_H the pill, and so on. */
         val PILL_W = 110.dp
+        /** A 2x1 at least this wide has room for the round End button next to "Laura". */
+        val PILL_END_W = 150.dp
         val SQUARE_H = 110.dp
         val CARD_W = 240.dp
         val FULL_H = 240.dp
@@ -106,6 +110,13 @@ class LauraTalkWidgetReceiver : GlanceAppWidgetReceiver() {
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
         super.onDeleted(context, appWidgetIds)
         WidgetPrefs.delete(context, appWidgetIds)
+    }
+}
+
+/** End from the widget: stops her reply and turns her off, in the app process, no activity. */
+class EndAction : ActionCallback {
+    override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
+        if (App.engine.ui.value.active) Invocation.end(context, "widget end")
     }
 }
 
@@ -176,6 +187,7 @@ private fun faceRes(style: String, face: String): Int = when (style) {
 }
 
 private fun talk(ctx: Context): Action = actionStartActivity(Invocation.intent(ctx, Invocation.SOURCE_WIDGET))
+private fun end(): Action = actionRunCallback<EndAction>()
 private fun open(ctx: Context): Action =
     actionStartActivity(Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
 
@@ -202,6 +214,7 @@ internal fun Content(m: WidgetModel, cfg: WidgetConfig) {
 }
 
 private val PILL_W = LauraWidget.PILL_W
+private val PILL_END_W = LauraWidget.PILL_END_W
 private val SQUARE_H = LauraWidget.SQUARE_H
 private val CARD_W = LauraWidget.CARD_W
 private val FULL_H = LauraWidget.FULL_H
@@ -251,13 +264,21 @@ private fun FaceLayout(m: WidgetModel, cfg: WidgetConfig, p: Pal, size: DpSize) 
 @Composable
 private fun PillLayout(m: WidgetModel, cfg: WidgetConfig, p: Pal, size: DpSize) {
     val ctx = LocalContext.current
-    Row(GlanceModifier.fillMaxSize().clickable(talk(ctx)).padding(start = 4.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Face(m, cfg, p, minOf(68.dp, size.height - 8.dp))
+    val ending = m.primary == Primary.END && size.width >= PILL_END_W
+    // with End on the right, the face gives up room before the text does
+    val face = if (ending) minOf(68.dp, size.height - 8.dp, size.width - 120.dp).coerceAtLeast(36.dp) else minOf(68.dp, size.height - 8.dp)
+    Row(GlanceModifier.fillMaxSize().clickable(talk(ctx)).padding(start = 4.dp, end = if (ending) 8.dp else 12.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Face(m, cfg, p, face)
         Spacer(GlanceModifier.width(4.dp))
-        Column {
+        Column(if (ending) GlanceModifier.defaultWeight() else GlanceModifier) {
             Text("Laura", maxLines = 1, style = TextStyle(color = p.ink, fontSize = 15.sp, fontWeight = FontWeight.Medium))
             Spacer(GlanceModifier.height(5.dp))
             Status(m, p)
+        }
+        if (ending) {
+            Spacer(GlanceModifier.width(4.dp))
+            IconButton(R.drawable.ic_w_stop, "End", p.btn, p.onBtn, end(), 36.dp)
         }
     }
 }
@@ -270,7 +291,7 @@ private fun SquareLayout(m: WidgetModel, cfg: WidgetConfig, p: Pal, size: DpSize
         Box(GlanceModifier.fillMaxWidth().defaultWeight().clickable(talk(ctx)), contentAlignment = Alignment.Center) {
             Face(m, cfg, p, minOf(size.height - 104.dp, size.width - 40.dp).coerceAtLeast(48.dp))
         }
-        TalkButton(p, GlanceModifier.fillMaxWidth())
+        MainButton(m, p, GlanceModifier.fillMaxWidth())
     }
 }
 
@@ -339,21 +360,24 @@ private fun ReplyCard(r: Reply?, mode: String, lines: Int, p: Pal, modifier: Gla
     }
 }
 
+/** Talk, or End while she is on: one solid pill either way. */
 @Composable
-private fun TalkButton(p: Pal, modifier: GlanceModifier) {
+private fun MainButton(m: WidgetModel, p: Pal, modifier: GlanceModifier) {
     val ctx = LocalContext.current
-    Row(modifier.height(40.dp).then(tinted(R.drawable.widget_pill, p.cta)).clickable(talk(ctx)),
+    val ending = m.primary == Primary.END
+    Row(modifier.height(40.dp).then(tinted(R.drawable.widget_pill, p.cta)).clickable(if (ending) end() else talk(ctx)),
         horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically) {
-        Image(ImageProvider(R.drawable.ic_w_mic), null, GlanceModifier.size(20.dp), colorFilter = ColorFilter.tint(p.onCta))
+        Image(ImageProvider(if (ending) R.drawable.ic_w_stop else R.drawable.ic_w_mic), null, GlanceModifier.size(20.dp),
+            colorFilter = ColorFilter.tint(p.onCta))
         Spacer(GlanceModifier.width(8.dp))
-        Text("Talk", style = TextStyle(color = p.onCta, fontSize = 14.sp, fontWeight = FontWeight.Medium))
+        Text(if (ending) "End" else "Talk", style = TextStyle(color = p.onCta, fontSize = 14.sp, fontWeight = FontWeight.Medium))
     }
 }
 
 @Composable
-private fun IconButton(res: Int, label: String, bg: ColorProvider, fg: ColorProvider, action: Action) {
-    Box(GlanceModifier.size(40.dp).then(tinted(R.drawable.widget_circle, bg)).clickable(action), contentAlignment = Alignment.Center) {
-        Image(ImageProvider(res), label, GlanceModifier.size(20.dp), colorFilter = ColorFilter.tint(fg))
+private fun IconButton(res: Int, label: String, bg: ColorProvider, fg: ColorProvider, action: Action, size: Dp = 40.dp) {
+    Box(GlanceModifier.size(size).then(tinted(R.drawable.widget_circle, bg)).clickable(action), contentAlignment = Alignment.Center) {
+        Image(ImageProvider(res), label, GlanceModifier.size(size / 2), colorFilter = ColorFilter.tint(fg))
     }
 }
 
@@ -361,7 +385,7 @@ private fun IconButton(res: Int, label: String, bg: ColorProvider, fg: ColorProv
 private fun Actions(m: WidgetModel, p: Pal) {
     val ctx = LocalContext.current
     Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        TalkButton(p, GlanceModifier.defaultWeight())
+        MainButton(m, p, GlanceModifier.defaultWeight())
         if (m.canMute) {
             Spacer(GlanceModifier.width(8.dp))
             if (m.muted) IconButton(R.drawable.ic_w_mic_off, "Unmute", p.raised, p.bad, actionRunCallback<MuteAction>())
