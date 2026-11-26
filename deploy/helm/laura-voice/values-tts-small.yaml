@@ -1,0 +1,10 @@
+# Small Laura voice on the CPU (tts-small): helm upgrade ... -f values.yaml -f values-tts-small.yaml
+tts:
+  image: { repository: tts-small, tag: "0.1.1", pullPolicy: IfNotPresent }
+  gpu: false
+  env:
+    TTS_THREADS: "4"          # onnxruntime threads; keep <= any CPU limit (CFS throttling adds 100s of ms)
+    TTS_SPEED_MULT: "1.2"     # native length scale, no time-stretch
+  resources:
+    requests: { cpu: "1", memory: 384Mi }
+    limits: { memory: 1Gi }

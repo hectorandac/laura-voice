@@ -1,0 +1,149 @@
+{{- $c := dict "root" . "component" "gateway" }}
+{{- $name := include "lv.name" . }}
+{{- if .Values.deviceEndpoint.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-edge
+  labels: {{- include "lv.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    worker_processes 1;
+    pid /tmp/nginx.pid;
+    # crit: error lines (e.g. upstream refused while the gateway restarts) include the request URL and its key.
+    error_log /dev/stderr crit;
+    events { worker_connections 256; }
+    http {
+      access_log off;
+      client_body_temp_path /tmp/client_body;
+      proxy_temp_path /tmp/proxy;
+      map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+      include /etc/nginx/mime.types;
+      server {
+        listen {{ .Values.deviceEndpoint.hostPort }} ssl;
+        ssl_certificate /tls/tls.crt;
+        ssl_certificate_key /tls/tls.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        # The Hermes link is cluster-internal only.
+        location = /laura { return 404; }
+        location / {
+          proxy_pass http://127.0.0.1:{{ .Values.gateway.port }};
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection $connection_upgrade;
+          proxy_set_header Host $host;
+          proxy_set_header X-Forwarded-For $remote_addr;
+          proxy_buffering off;
+          proxy_read_timeout 1h;
+          proxy_send_timeout 1h;
+          tcp_nodelay on;
+        }
+      }
+    }
+---
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-gateway
+  labels: {{- include "lv.labels" . | nindent 4 }}
+    app.kubernetes.io/component: gateway
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: {{- include "lv.selector" $c | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "lv.selector" $c | nindent 8 }}
+    spec:
+      {{- include "lv.placement" . | nindent 6 }}
+      initContainers:
+        - name: cache-owner
+          image: {{ include "lv.image" (dict "root" . "image" .Values.deviceEndpoint.image) }}
+          command: ["sh", "-c", "chown 10001:10001 /cache /data"]
+          volumeMounts:
+            - { name: cache, mountPath: /cache }
+            - { name: data, mountPath: /data }
+      containers:
+        - name: gateway
+          image: {{ include "lv.image" (dict "root" . "image" .Values.gateway.image) }}
+          imagePullPolicy: {{ .Values.gateway.image.pullPolicy }}
+          args: ["uvicorn", "assistant_server:app", "--host", "0.0.0.0", "--port", {{ .Values.gateway.port | quote }}, "--ws-ping-interval", "20", "--no-access-log", "--log-level", "warning"]
+          securityContext: { runAsUser: 10001, runAsGroup: 10001 }
+          env:
+            - { name: LLM_URL, value: "http://{{ $name }}-llm:{{ .Values.llm.port }}/v1/chat/completions" }
+            - { name: LLM_MODEL, value: {{ .Values.llm.defaultModel | quote }} }
+            - { name: TTS_URL, value: "http://{{ $name }}-tts:{{ .Values.tts.port }}/synth" }
+            - { name: ASSISTANT_DATA, value: /data }
+            - { name: NEMO_CACHE_DIR, value: /cache/nemo }
+            {{- range $k, $v := .Values.gateway.env }}
+            - { name: {{ $k }}, value: {{ $v | quote }} }
+            {{- end }}
+            {{- with .Values.gateway.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          envFrom:
+            - secretRef: { name: {{ .Values.gateway.existingSecret }} }
+          ports:
+            - { name: http, containerPort: {{ .Values.gateway.port }} }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          startupProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 5
+            failureThreshold: 120
+          resources: {{- include "lv.resources" (dict "root" . "res" .Values.gateway.resources "gpu" true) | nindent 12 }}
+          volumeMounts:
+            - { name: cache, mountPath: /cache }
+            - { name: data, mountPath: /data }
+            - { name: tmp, mountPath: /tmp }
+            {{- with .Values.gateway.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- if .Values.deviceEndpoint.enabled }}
+        - name: edge
+          image: {{ include "lv.image" (dict "root" . "image" .Values.deviceEndpoint.image) }}
+          imagePullPolicy: {{ .Values.deviceEndpoint.image.pullPolicy }}
+          command: ["nginx", "-g", "daemon off;", "-c", "/etc/nginx/edge/nginx.conf"]
+          ports:
+            - name: https
+              containerPort: {{ .Values.deviceEndpoint.hostPort }}
+              hostPort: {{ .Values.deviceEndpoint.hostPort }}
+              {{- with .Values.deviceEndpoint.hostIP }}
+              hostIP: {{ . }}
+              {{- end }}
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { memory: 64Mi }
+          volumeMounts:
+            - { name: edge, mountPath: /etc/nginx/edge, readOnly: true }
+            - { name: tls, mountPath: /tls, readOnly: true }
+        {{- end }}
+      volumes:
+        - name: cache
+          hostPath: { path: {{ .Values.gateway.cacheHostPath }}, type: DirectoryOrCreate }
+        - name: data
+          hostPath: { path: {{ .Values.gateway.dataHostPath }}, type: DirectoryOrCreate }
+        - name: tmp
+          emptyDir: { sizeLimit: {{ .Values.gateway.tmpSize }} }
+        {{- if .Values.deviceEndpoint.enabled }}
+        - name: edge
+          configMap: { name: {{ $name }}-edge }
+        - name: tls
+          secret: { secretName: {{ include "lv.tlsSecret" . }} }
+        {{- end }}
+        {{- with .Values.gateway.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-gateway
+  labels: {{- include "lv.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "lv.selector" $c | nindent 4 }}
+  ports:
+    - { name: http, port: {{ .Values.gateway.port }}, targetPort: http }

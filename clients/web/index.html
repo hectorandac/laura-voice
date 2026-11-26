@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#101522" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f4f6fb" media="(prefers-color-scheme: light)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Voice">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Voice Assistant</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-512.png">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <div class="conn" id="conn" data-state="offline" title="Offline">
+      <span class="dot"></span><span class="conn-label" id="connLabel">Offline</span>
+    </div>
+    <div class="seg" id="modeSeg" role="group" aria-label="Mode">
+      <button type="button" data-value="handsfree">Hands-free</button>
+      <button type="button" data-value="ptt">Push-to-talk</button>
+    </div>
+    <div class="seg" id="langSeg" role="group" aria-label="Language">
+      <button type="button" data-value="auto">Auto</button>
+      <button type="button" data-value="ko" lang="ko">한국어</button>
+      <button type="button" data-value="en">English</button>
+    </div>
+    <div class="seg"><button type="button" id="carBtn" aria-pressed="false" title="Car / Bluetooth speakers: plays through media audio, mic pauses while replying">Car mode</button></div>
+  </header>
+  <div class="stats" id="stats" aria-label="Network and latency">RTT – ms</div>
+
+  <main class="log" id="log" aria-live="polite">
+    <p class="empty" id="empty">Your conversation will appear here.</p>
+  </main>
+
+  <section class="dock">
+    <button type="button" class="orb" id="orb" data-state="idle" aria-label="Talk">
+      <span class="halo"></span>
+      <span class="core"></span>
+      <span class="label" id="orbLabel">Tap to start</span>
+    </button>
+    <p class="partial" id="partial" aria-live="polite"></p>
+  </section>
+</body>
+</html>

@@ -1,0 +1,117 @@
+# All three components share one GPU node (time-sliced nvidia.com/gpu or a whole GPU each).
+
+imageRegistry: ""          # e.g. registry.example.com/laura-voice; prefixed to every image below
+imagePullSecrets: []
+
+# Where the stack runs. The defaults match a node labelled and tainted dedicated=voice.
+nodeSelector:
+  dedicated: voice
+tolerations:
+  - { key: dedicated, operator: Equal, value: voice, effect: NoSchedule }
+# A laptop node sleeps and travels: keep the pods bound to it instead of evicting them (there is
+# nowhere else for them to go), so they resume as soon as it is back.
+tolerateNodeAway: true
+runtimeClassName: nvidia
+gpuResource: nvidia.com/gpu
+
+llm:
+  enabled: true
+  image: { repository: llama-server, tag: "0.1.0", pullPolicy: IfNotPresent }
+  port: 8090
+  # Host directory holding the .gguf files, mounted read-only at /models.
+  modelsHostPath: /var/lib/laura-voice/models
+  # llama-server router presets (models.ini). Paths are inside the container.
+  defaultModel: bonsai-9b-voice
+  maxLoaded: 1
+  presets: |
+    version = 1
+
+    [*]
+    n-gpu-layers = 99
+    flash-attn = on
+    cache-type-k = q8_0
+    cache-type-v = q8_0
+    parallel = 1
+    jinja = true
+
+    ; Voice: short conversations, leaves room for ASR + TTS on an 8 GB GPU
+    [bonsai-9b-voice]
+    model = /models/Ternary-Bonsai-2-9B-PTQ1_0.gguf
+    c = 16384
+  # Load the default model at start instead of on the first request.
+  preload: true
+  extraArgs: []
+  resources:
+    requests: { cpu: 500m, memory: 2Gi }
+    limits: { memory: 12Gi }
+  # Namespaces (besides this release's gateway) allowed to call the LLM, e.g. the Hermes namespace.
+  allowedNamespaces: []
+
+tts:
+  enabled: true
+  image: { repository: tts, tag: "0.1.0", pullPolicy: IfNotPresent }
+  port: 8091
+  cacheHostPath: /var/lib/laura-voice/cache/supertonic
+  cacheMountPath: /home/app/.cache
+  # Server settings, e.g. for the Qwen3-TTS image (tts-qwen): TTS_SPEED_MULT, TTS_CHUNK, TTS_DTYPE.
+  env: {}
+  # false: no GPU request (tts-small runs on the CPU)
+  gpu: true
+  resources:
+    requests: { cpu: 250m, memory: 1Gi }
+    limits: { memory: 4Gi }
+
+gateway:
+  image: { repository: gateway, tag: "0.1.0", pullPolicy: IfNotPresent }
+  port: 8080                         # plain HTTP inside the pod network (Hermes link, ingress)
+  cacheHostPath: /var/lib/laura-voice/cache/gateway   # hf/ (ASR) and nemo/ (TitaNet)
+  # ASSISTANT_DATA: the enrolled voice profile (voice_profile.npz) and recalls.jsonl. Back it up; never in git.
+  dataHostPath: /var/lib/laura-voice/data
+  # Scratch space: NeMo unpacks the 2.4 GB ASR checkpoint into /tmp while loading.
+  tmpSize: 6Gi
+  # Secret with ASSISTANT_KEY (device access key) and optionally LAURA_LINK_TOKEN (enables the Hermes link).
+  existingSecret: laura-voice
+  env:
+    TTS_VOICE: F1
+    ASSISTANT_NAME: Laura
+    ASSISTANT_USER: Hector
+  extraEnv: []
+  extraVolumes: []
+  extraVolumeMounts: []
+  resources:
+    requests: { cpu: "1", memory: 3Gi }
+    limits: { memory: 8Gi }
+  # Namespaces allowed to reach the plain port (the Hermes plugin dials ws://<gateway>:8080/laura).
+  allowedNamespaces: []
+
+# Devices connect to https/wss on the node itself (no hairpin through the cluster's ingress).
+# An nginx sidecar terminates TLS on hostPort; hostIP limits it to one interface (e.g. a VPN address).
+deviceEndpoint:
+  enabled: true
+  hostPort: 8443
+  hostIP: ""
+  image: { repository: docker.io/library/nginx, tag: 1.27-alpine, pullPolicy: IfNotPresent }
+
+tls:
+  # Secret (tls.crt/tls.key) the sidecar serves. Empty = the certificate issued below.
+  existingSecret: ""
+  # A private CA from cert-manager: install ca.crt once on each device, then certificates rotate freely.
+  privateCA:
+    enabled: true
+    commonName: laura-voice CA
+  certificate:
+    ipAddresses: []                  # node addresses devices dial, e.g. VPN and LAN IPs
+    dnsNames: []
+    duration: 2160h
+    renewBefore: 720h
+
+# Optional: expose the gateway through an ingress controller instead of (or besides) the node port.
+ingress:
+  enabled: false
+  className: nginx
+  host: ""
+  annotations: {}
+  tlsSecret: ""
+
+networkPolicy:
+  enabled: true

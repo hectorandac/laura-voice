@@ -1,0 +1,31 @@
+name: laura-voice
+label: Laura voice
+kind: platform
+version: 0.1.0
+description: >
+  Voice channel for Hermes. Links to a laura-voice gateway (streaming speech recognition, turn-taking,
+  a fast local model, speech synthesis). Spoken requests that need real work become normal turns in one
+  Hermes session; replies, progress and approval prompts go back to the user's devices.
+author: hectorandac
+requires_env:
+  - name: LAURA_VOICE_URL
+    description: "Voice gateway link URL, e.g. ws://laura-voice-gateway.voice.svc:8080/laura"
+    prompt: "Voice gateway link URL"
+    password: false
+optional_env:
+  - name: LAURA_VOICE_TOKEN
+    description: "Shared bearer token for the link (same value as the gateway's LAURA_LINK_TOKEN)"
+    prompt: "Link token"
+    password: true
+  - name: LAURA_VOICE_USER
+    description: "User id the voice session belongs to (default: hector)"
+    prompt: "User id"
+    password: false
+  - name: LAURA_VOICE_ALLOWED_USERS
+    description: "Allowlist; set it to LAURA_VOICE_USER"
+    prompt: "Allowed users"
+    password: false
+  - name: LAURA_VOICE_HOME_CHANNEL
+    description: "Home channel for cron delivery (default: voice)"
+    prompt: "Home channel"
+    password: false

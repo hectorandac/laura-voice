@@ -1,0 +1,16 @@
+[Unit]
+Description=laura-voice speaker client
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+User=laura
+SupplementaryGroups=audio
+ExecStart=/usr/bin/python3 /opt/laura-voice/laura_voice.py -c /etc/laura-voice.conf
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=on-failure
+RestartSec=5
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target

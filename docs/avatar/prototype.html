@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laura Voxel Avatar</title>
+<style>
+:root{
+  --bg:#F3F4F9; --surface:#FFFFFF; --stage:#E7EAF3; --text:#161A2C; --muted:#596079;
+  --line:#D8DCE8; --chip:#ECEFF6; --chip-text:#22283F; --on:#20295A; --on-text:#FFFFFF;
+  --accent:#2F7BE0; --react:#7A55E8; --warn:#C2410C;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A0C14; --surface:#131624; --stage:#06070D; --text:#E7E9F3; --muted:#9298AF;
+    --line:#252A3D; --chip:#1B1F31; --chip-text:#D9DCEA; --on:#8FE9FF; --on-text:#06202A;
+    --accent:#7FD8FF; --react:#B9A2FF; --warn:#FF9A6B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A0C14; --surface:#131624; --stage:#06070D; --text:#E7E9F3; --muted:#9298AF;
+  --line:#252A3D; --chip:#1B1F31; --chip-text:#D9DCEA; --on:#8FE9FF; --on-text:#06202A;
+  --accent:#7FD8FF; --react:#B9A2FF; --warn:#FF9A6B;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);overflow-x:hidden;
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 48px}
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px}
+.stage{position:relative;width:100%;height:min(54vh,calc(100vw - 32px),560px);min-height:240px;
+  border-radius:20px;overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+canvas#c{display:block;width:100%;height:100%;touch-action:pan-y;cursor:crosshair}
+.hud{position:absolute;left:12px;right:12px;top:10px;display:flex;justify-content:space-between;gap:8px;
+  font-size:12px;color:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}
+.hud b{color:var(--text);font-weight:600}
+.meters{position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:10px;pointer-events:none}
+.meter{flex:1;height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--accent)}
+.meter.tts i{background:var(--react)}
+#desc{margin:8px 2px 0;color:var(--muted);font-size:13.5px;min-height:2.9em}
+h1{font-size:17px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h1 small{font-weight:400;color:var(--muted);font-size:12px}
+section{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 12px 14px;margin-top:12px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+button,select{font:inherit;color:var(--chip-text);background:var(--chip);border:1px solid var(--line);
+  border-radius:999px;min-height:40px;padding:7px 14px;cursor:pointer;touch-action:manipulation}
+button[aria-pressed="true"]{background:var(--on);color:var(--on-text);border-color:var(--on)}
+button.react{border-color:color-mix(in srgb,var(--react) 45%,var(--line))}
+button.react.flash{background:var(--react);color:var(--on-text)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select{border-radius:12px;padding-right:10px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.row label{color:var(--muted);font-size:13px}
+input[type=range]{flex:1;min-width:140px;accent-color:var(--accent);height:32px}
+.note{font-size:12.5px;color:var(--muted);margin:8px 2px 0}
+.warn{color:var(--warn)}
+#preview{width:128px;height:128px;border-radius:50%;background:#000;display:block;border:1px solid var(--line)}
+.exp{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}
+code{font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Laura · voxel avatar <small>prototype</small></h1>
+    <div class="stage" id="stage">
+      <canvas id="c" aria-label="Animated voxel character"></canvas>
+      <div class="hud"><span><b id="lbl">idle</b> <span id="lbl2"></span></span><span id="fps"></span></div>
+      <div class="meters"><div class="meter" title="mic level"><i id="mMic"></i></div><div class="meter tts" title="TTS amplitude"><i id="mTts"></i></div></div>
+    </div>
+    <p id="desc"></p>
+  </div>
+
+  <section>
+    <h2>State</h2>
+    <div class="chips" id="states"></div>
+    <div class="row"><button id="car" aria-pressed="false">Car mode (calm)</button><button id="demo" aria-pressed="false">Auto demo</button></div>
+  </section>
+
+  <section>
+    <h2>Reactions (one-shot, layered)</h2>
+    <div class="chips" id="reactions"></div>
+    <p class="note">Tap rapidly or during Speaking/Listening: each reaction crossfades in over the current pose and out again; a new one interrupts the old one mid-motion.</p>
+  </section>
+
+  <section>
+    <h2>Emotion hint (persistent mood)</h2>
+    <div class="chips" id="emotions"></div>
+  </section>
+
+  <section>
+    <h2>Input</h2>
+    <div class="row"><label for="lvl">Voice level</label><input id="lvl" type="range" min="0" max="1" step="0.01" value="0.35"><span id="lvlv" style="width:3ch;text-align:right">0.35</span></div>
+    <div class="row"><button id="mic" aria-pressed="false">Use microphone</button><span class="note" id="micnote" style="margin:0"></span></div>
+    <p class="note">Speaking uses a synthetic syllable envelope (purple meter). Tap the character to poke it; drag to steer its gaze.</p>
+  </section>
+
+  <section>
+    <h2>Display</h2>
+    <div class="chips" id="glow"></div>
+    <div class="chips" id="theme" style="margin-top:8px"></div>
+    <p class="note" id="perfnote"></p>
+  </section>
+
+  <section>
+    <h2>Export watch clips</h2>
+    <div class="row">
+      <select id="clip" aria-label="Clip"></select>
+      <select id="size" aria-label="Frame size"><option>192</option><option selected>256</option><option>320</option><option>450</option></select>
+      <select id="efps" aria-label="Frame rate"><option value="12">12 fps</option><option value="15" selected>15 fps</option><option value="24">24 fps</option></select>
+    </div>
+    <div class="row"><button id="exp1">Export sprite sheet</button><button id="expAll">Export all + manifest</button></div>
+    <div class="exp"><canvas id="preview" width="256" height="256"></canvas><div class="note" id="expnote" style="flex:1;min-width:160px">Renders canonical idle → reaction → canonical idle on black, deterministic, no gaze/blink/random. First and last frames equal idle frame 0, so clips chain seamlessly.</div></div>
+  </section>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const smooth = (a, b, x) => { const u = clamp((x - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
+const hash = n => { const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
+const damp = (k, dt) => 1 - Math.exp(-k * dt);
+const L = 4; // canonical idle loop length (s); all idle oscillators are harmonics of 1/L
+
+// ---------------------------------------------------------------- palette
+const THEMES = {
+  dark: {
+    name: 'dark', blend: THREE.AdditiveBlending, depthWrite: false, opacity: 0.2, edge: 0.85,
+    top: '#8FF3FF', bottom: '#A68CFF', core: '#FFE6C2', eye: '#0B0F2E', blush: '#FF7FB0',
+    hand: '#C2F7FF', sat: '#A8ECFF', eyeGlow: 0.5, haloA: 0.30, shadow: '#6FD8FF', shadowA: 0.12,
+    tints: { listening: '#5CF2D6', thinking: '#B794FF', speaking: '#7FD8FF', interrupted: '#FFC35C', ignored: '#9AA3BD',
+      notowner: '#7C8AA8', error: '#FF5F5F', offline: '#7A8194', warm: '#FFC46B', lavender: '#A08CFF', blue: '#7FB3FF',
+      car: '#3FC8B4', gold: '#FFB84A', pink: '#FF9CC8', cyan: '#6CF0FF' }
+  },
+  light: {
+    name: 'light', blend: THREE.NormalBlending, depthWrite: true, opacity: 0.52, edge: 0.75,
+    top: '#1FB2D6', bottom: '#6F55EE', core: '#9BE7FF', eye: '#141638', blush: '#FF4F8B',
+    hand: '#2E9FE0', sat: '#4A82F0', eyeGlow: 0.45, haloA: 0.22, shadow: '#1B2340', shadowA: 0.16,
+    tints: { listening: '#10B89A', thinking: '#7C4DFF', speaking: '#1FA6E0', interrupted: '#F29A12', ignored: '#7D86A0',
+      notowner: '#5D6B8A', error: '#E5484D', offline: '#8A90A2', warm: '#F2A23A', lavender: '#6E5CE6', blue: '#3D7FE0',
+      car: '#1E8C80', gold: '#E8A317', pink: '#F0559A', cyan: '#14B8D8' }
+  }
+};
+let TH = THEMES.dark;
+
+// ---------------------------------------------------------------- voxel layout
+const K = { SHELL: 0, CORE: 1, EYE: 2, MOUTH: 3, BLUSH: 4, HAND: 5, SAT: 6, CATCH: 7 };
+const isFace = k => k === K.EYE || k === K.MOUTH || k === K.BLUSH || k === K.CATCH;
+const VS = 0.8, GX = 5.6, GY = 5.1, GZ = 4.6, PIV = 2.4;
+const inside = (x, y, z) => { const w = 1 + 0.1 * (-y / GY); const a = x / (GX * w), b = y / GY, c = z / (GZ * w); return a * a + b * b + c * c <= 1; };
+const items = [];
+const frontZ = new Map();
+for (let x = -7; x <= 7; x++) for (let y = -7; y <= 7; y++) for (let z = -7; z <= 7; z++) {
+  if (!inside(x, y, z)) continue;
+  const surf = !inside(x + 1, y, z) || !inside(x - 1, y, z) || !inside(x, y + 1, z) || !inside(x, y - 1, z) || !inside(x, y, z + 1) || !inside(x, y, z - 1);
+  const n = new THREE.Vector3(x / (GX * GX), y / (GY * GY), z / (GZ * GZ)).normalize();
+  const base = { hx: x * VS, hy: y * VS, hz: z * VS, nx: n.x, ny: n.y, nz: n.z, ph: Math.random() * TAU, v: Math.random() - 0.5, vis: 1 };
+  if (surf) {
+    items.push(Object.assign(base, { k: K.SHELL, size: VS * 0.84 }));
+    const key = x + ',' + y; if (!frontZ.has(key) || frontZ.get(key) < z) frontZ.set(key, z);
+  } else if (Math.hypot(x / GX, y / GY, z / GZ) < 0.45 && ((x + y + z) & 1) === 0) {
+    items.push(Object.assign(base, { k: K.CORE, size: VS * 0.62 }));
+  }
+}
+const faceZ = (x, y) => { const key = Math.round(x / VS) + ',' + Math.round(y / VS); return (frontZ.has(key) ? frontZ.get(key) : 4) * VS + 0.5; };
+const EYE_CX = 1.6, EYE_CY = 0.75, ES = 0.42;
+for (const side of [-1, 1]) for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+  const x = side * EYE_CX + (c - 1.5) * ES, y = EYE_CY + (1.5 - r) * ES;
+  items.push({ k: K.EYE, side, r, c, hx: x, hy: y, hz: faceZ(x, y), cx: side * EYE_CX, cy: EYE_CY, size: 0.37, vis: 0, ph: 0, v: 0 });
+}
+for (const side of [-1, 1]) {
+  const x = side * EYE_CX - 0.3, y = EYE_CY + 0.38;
+  items.push({ k: K.CATCH, side, hx: x, hy: y, hz: faceZ(side * EYE_CX, EYE_CY) + 0.25, cx: side * EYE_CX, cy: EYE_CY, size: 0.2, vis: 1, ph: 0, v: 0 });
+}
+for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+  const x = (c - 1.5) * 0.36, y = -1.0 - r * 0.34;
+  items.push({ k: K.MOUTH, r, c, hx: x, hy: y, hz: faceZ(x, y) + 0.05, size: 0.31, vis: 0, ph: 0, v: 0 });
+}
+for (const side of [-1, 1]) for (let j = 0; j < 2; j++) {
+  const x = side * (2.5 + j * 0.36), y = -0.3;
+  items.push({ k: K.BLUSH, side, hx: x, hy: y, hz: faceZ(x, y) - 0.1, size: 0.3, vis: 0, ph: 0, v: 0 });
+}
+for (const side of [-1, 1]) items.push({ k: K.HAND, side, size: 0.8, vis: 1, ph: 0, v: 0, hx: 0, hy: 0, hz: 0 });
+const NSAT = 8;
+for (let i = 0; i < NSAT; i++) items.push({ k: K.SAT, idx: i, size: 0.4, vis: 1, ph: i * TAU / NSAT + (Math.random() - 0.5) * 0.5,
+  rf: 0.85 + Math.random() * 0.3, yo: (Math.random() - 0.5) * 1.6, sf: 0.8 + Math.random() * 0.45, v: 0, hx: 0, hy: 0, hz: 0 });
+const N = items.length;
+
+// ---------------------------------------------------------------- three setup
+const canvas = $('#c'), stageEl = $('#stage');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' }); }
+catch (e) { $('#desc').textContent = 'WebGL is not available in this browser.'; throw e; }
+renderer.info.autoReset = false;
+let dpr = Math.min(window.devicePixelRatio || 1, 2);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1, 1, 200);
+
+const uniforms = { uTint: { value: new THREE.Color() }, uTintAmt: { value: 0 }, uOpacity: { value: 0.3 },
+  uDim: { value: 1 }, uDesat: { value: 0 }, uEdge: { value: 1 } };
+const mat = new THREE.ShaderMaterial({
+  uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `
+    attribute vec3 aColor; attribute vec4 aFx;   // glow, tintable, alphaBoost, unused
+    varying vec3 vColor; varying vec4 vFx; varying vec2 vUv; varying vec3 vN;
+    void main(){
+      vUv = uv; vColor = aColor; vFx = aFx;
+      mat4 mv = modelViewMatrix * instanceMatrix;
+      vN = normalize(mat3(mv) * normal);
+      gl_Position = projectionMatrix * mv * vec4(position, 1.0);
+    }`,
+  fragmentShader: `
+    uniform vec3 uTint; uniform float uTintAmt, uOpacity, uDim, uDesat, uEdge;
+    varying vec3 vColor; varying vec4 vFx; varying vec2 vUv; varying vec3 vN;
+    void main(){
+      vec2 d = abs(vUv - 0.5) * 2.0;
+      float edge = smoothstep(0.70, 0.97, max(d.x, d.y));
+      vec3 base = mix(vColor, uTint, uTintAmt * vFx.y);
+      base = mix(base, vec3(dot(base, vec3(0.299, 0.587, 0.114))), uDesat);
+      vec3 n = normalize(vN);
+      float diff = 0.6 + 0.4 * max(dot(n, normalize(vec3(0.35, 0.8, 0.5))), 0.0);
+      float fres = pow(1.0 - abs(n.z), 2.0);
+      vec3 col = base * diff * (0.5 + 0.6 * vFx.x) + base * edge * uEdge * (0.55 + vFx.x) + base * fres * 0.15;
+      col *= uDim;
+      gl_FragColor = vec4(col, clamp(uOpacity + edge * 0.35 + vFx.z, 0.0, 1.0));
+      #include <colorspace_fragment>
+    }`
+});
+// face pixels get their own normal-blended, always-on-top mesh so they stay readable over the glowing body
+const faceMat = mat.clone(); faceMat.uniforms = uniforms; faceMat.blending = THREE.NormalBlending; faceMat.depthTest = false; faceMat.depthWrite = false;
+function makeLayer(count, material, order) {
+  const g = new THREE.BoxGeometry(1, 1, 1);
+  const col = new THREE.InstancedBufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  const fx = new THREE.InstancedBufferAttribute(new Float32Array(count * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  g.setAttribute('aColor', col); g.setAttribute('aFx', fx);
+  const m = new THREE.InstancedMesh(g, material, count);
+  m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.renderOrder = order; scene.add(m);
+  return { mesh: m, col, fx };
+}
+const bodyIdx = [], faceIdx = [];
+items.forEach((it, i) => (isFace(it.k) ? faceIdx : bodyIdx).push(i));
+const bodyL = makeLayer(bodyIdx.length, mat, 0), faceL = makeLayer(faceIdx.length, faceMat, 10);
+
+const quadShader = (frag) => new THREE.ShaderMaterial({
+  uniforms: { uColor: { value: new THREE.Color() }, uAlpha: { value: 0.3 } }, transparent: true, depthWrite: false,
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: 'uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv; void main(){ ' + frag + ' gl_FragColor = vec4(uColor, a * uAlpha);\n#include <colorspace_fragment>\n}'
+});
+const halo = new THREE.Mesh(new THREE.PlaneGeometry(22, 22), quadShader('float d = length(vUv - 0.5) * 2.0; float a = pow(max(1.0 - d, 0.0), 2.2);'));
+halo.position.z = -5; halo.renderOrder = -2; scene.add(halo);
+const shadow = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.6), quadShader('float d = length(vUv - 0.5) * 2.0; float a = pow(max(1.0 - d, 0.0), 1.6);'));
+shadow.position.set(0, -6.3, 0); shadow.renderOrder = -1; scene.add(shadow);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.85, 0.55, 0.18);
+bloom.compositeMaterial.uniforms.bloomFactors.value = [1.0, 0.55, 0.22, 0.06, 0.0]; // keep glow tight, no room-wide haze
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+let glowMode = 'bloom';
+const bloomOn = () => glowMode === 'bloom' && TH.name === 'dark';
+
+function frame(w, h) {
+  camera.aspect = w / h;
+  const ext = 7.6, f = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  let d = ext / f; if (camera.aspect < 1) d /= camera.aspect;
+  camera.position.set(0, 0.2, d); camera.lookAt(0, 0.2, 0); camera.updateProjectionMatrix();
+}
+function resize() {
+  const r = stageEl.getBoundingClientRect(); const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+  renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+  composer.setPixelRatio(dpr); composer.setSize(w, h);
+  frame(w, h);
+}
+new ResizeObserver(() => { if (!exporting) resize(); }).observe(stageEl);
+
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function themeName() {
+  const a = document.documentElement.dataset.theme; if (a === 'dark' || a === 'light') return a;
+  return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+const tmpC = new THREE.Color(), cTop = new THREE.Color(), cBot = new THREE.Color();
+function applyTheme(name, clearHex) {
+  TH = THEMES[name];
+  mat.blending = TH.blend; mat.depthWrite = TH.depthWrite; mat.needsUpdate = true;
+  uniforms.uEdge.value = TH.edge;
+  for (const m of [halo.material, shadow.material]) { m.blending = TH.name === 'dark' ? THREE.AdditiveBlending : THREE.NormalBlending; m.needsUpdate = true; }
+  shadow.material.uniforms.uColor.value.set(TH.shadow);
+  cTop.set(TH.top); cBot.set(TH.bottom);
+  for (const it of items) {
+    it.col = new THREE.Color();
+    if (it.k === K.SHELL) { it.col.copy(cBot).lerp(cTop, clamp((it.hy + 4.5) / 9, 0, 1)); it.col.offsetHSL(0, 0, it.v * 0.06); }
+    else if (it.k === K.CORE) it.col.set(TH.core);
+    else if (it.k === K.EYE || it.k === K.MOUTH) it.col.set(TH.eye);
+    else if (it.k === K.CATCH) it.col.set('#FFFFFF');
+    else if (it.k === K.BLUSH) it.col.set(TH.blush);
+    else if (it.k === K.HAND) it.col.set(TH.hand);
+    else it.col.set(TH.sat);
+  }
+  bloom.threshold = 0.8; bloom.strength = 0.32; bloom.radius = 0.15;
+  renderer.setClearColor(new THREE.Color(clearHex || cssVar('--stage') || '#000000'), 1);
+}
+
+// ---------------------------------------------------------------- face patterns
+const EYES = {
+  open: ['.##.', '####', '####', '.##.'], calm: ['....', '.##.', '.##.', '....'],
+  sleep: ['....', '....', '#..#', '.##.'], flat: ['....', '....', '####', '....'],
+  narrow: ['....', '####', '####', '....'], happy: ['....', '.##.', '#..#', '....'],
+  sad: ['....', '..##', '####', '....'], x: ['#..#', '.##.', '.##.', '#..#'],
+  off: ['....', '....', '.##.', '....'], star: ['.#..', '####', '.##.', '.#.#']
+};
+const MOUTHS = {
+  none: ['....', '....', '....'], smile: ['#..#', '.##.', '....'], frown: ['....', '.##.', '#..#'],
+  o: ['.##.', '#..#', '.##.'], flat: ['....', '.##.', '....'], wavy: ['....', '#.#.', '.#.#'],
+  laugh: ['####', '#..#', '.##.'], small: ['....', '.#..', '....']
+};
+function eyeBit(spec, side, r, c) {
+  const name = Array.isArray(spec) ? spec[side < 0 ? 0 : 1] : spec;
+  const p = EYES[name] || EYES.open; const cc = side > 0 ? 3 - c : c; return p[r][cc] === '#' ? 1 : 0;
+}
+function catchBit(spec, side) {
+  const name = Array.isArray(spec) ? spec[side < 0 ? 0 : 1] : spec;
+  return (name === 'open' || name === 'calm' || name === 'narrow' || name === 'star') ? 1 : 0;
+}
+function mouthBit(spec, amp, r, c) {
+  if (spec === 'speak') {
+    const row = ['.##.', '####', '.##.'][r]; if (row[c] !== '#') return 0;
+    return r === 0 ? 1 : (r === 1 ? (amp > 0.28 ? 1 : 0) : (amp > 0.62 ? 1 : 0));
+  }
+  return (MOUTHS[spec] || MOUTHS.none)[r][c] === '#' ? 1 : 0;
+}
+
+// ---------------------------------------------------------------- reactions
+// Each reaction is a procedural layer: f(u, d, o) writes additive offsets into o; the system multiplies them by a
+// smooth weight (attack 0.22 s, release 0.38 s, or a 0.3 s fade when interrupted) and sums them over the base pose.
+const H = (x, y, z) => [x, y, z];
+const REACTIONS = {
+  nod:      { d: 1.3, desc: 'Two soft nods: yes, got it, agreed.', f: (u, d, o) => { const s = Math.sin(Math.PI * 1.85 * u); o.pitch = 0.24 * s * s; o.y = -0.15 * s * s; o.eyes = 'happy'; } },
+  shake:    { d: 1.3, desc: 'Head shake side to side: no / that is not right.', f: (u, d, o) => { o.yaw = 0.32 * Math.sin(TAU * 2.4 * u); o.eyeX = -0.4 * Math.sin(TAU * 2.4 * u); o.eyes = 'flat'; o.mouth = 'flat'; } },
+  happy:    { d: 1.6, desc: 'Little hops with ^ ^ eyes and blush: pleased, warm.', f: (u, d, o) => { const h = Math.abs(Math.sin(TAU * 1.4 * u)); o.y = 0.6 * h; o.sq = 0.06 * h - 0.04; o.eyes = 'happy'; o.mouth = 'smile'; o.blush = 1; o.tint = 'warm'; o.tintAmt = 0.3; o.glow = 0.2; } },
+  laugh:    { d: 1.8, desc: 'Rapid giggle bounce and wobble: something was funny.', f: (u, d, o) => { o.y = 0.28 * Math.abs(Math.sin(TAU * 4.5 * u)); o.roll = 0.09 * Math.sin(TAU * 2.2 * u); o.sq = 0.05 * Math.sin(TAU * 4.5 * u); o.eyes = 'happy'; o.mouth = 'laugh'; o.blush = 0.8; o.tint = 'warm'; o.tintAmt = 0.25; o.satSpin = 1.2 * u; o.glow = 0.25; } },
+  confused: { d: 2.0, desc: 'Head tilt, one squinted eye, eyes dart: unsure what was meant.', f: (u, d, o) => { o.roll = 0.24; o.eyes = ['open', 'flat']; o.mouth = 'wavy'; o.eyeX = 0.35 * Math.sin(TAU * 0.8 * u); o.tint = 'blue'; o.tintAmt = 0.2; o.satR = -0.6; } },
+  thinking_hard: { d: 2.4, desc: 'Narrowed eyes up, crown of spinning cubes, hand to chin: working on it.', f: (u, d, o) => { o.eyes = 'narrow'; o.eyeY = 0.8; o.eyeX = 0.5; o.roll = -0.12; o.satY = 5.2; o.satR = -4.0; o.satSpin = 5 * u; o.satTilt = -0.25; o.core = 1.2; o.think = 1; o.tint = 'thinking'; o.tintAmt = 0.35; o.hR = H(1.4, -3.0, 4.0); } },
+  surprised:{ d: 1.2, desc: 'Quick stretch, wide eyes and an o mouth: oh!', f: (u, d, o) => { const k = Math.exp(-3.5 * u); o.sq = 0.22 * k * Math.cos(9 * u); o.y = 0.5 * k; o.z = -0.6 * k; o.eyes = 'open'; o.eyeScale = 0.25; o.mouth = 'o'; o.satR = 2.5 * k; o.glow = 0.35 * k; } },
+  sad:      { d: 2.2, desc: 'Sinks and droops, sad eyes, hands together: sorry / apologetic.', f: (u, d, o) => { o.y = -0.6; o.pitch = -0.14; o.scale = -0.05; o.eyes = 'sad'; o.mouth = 'frown'; o.tint = 'lavender'; o.tintAmt = 0.35; o.glow = -0.15; o.satR = -1.2; o.hL = H(-0.8, -3.7, 3.6); o.hR = H(0.8, -3.7, 3.6); } },
+  shy:      { d: 2.0, desc: 'Turns aside, looks down, blushes: flattered or embarrassed.', f: (u, d, o) => { o.yaw = 0.38; o.pitch = -0.1; o.eyeX = 0.7; o.eyeY = -0.5; o.eyes = 'happy'; o.blush = 1; o.scale = -0.04; o.tint = 'pink'; o.tintAmt = 0.2; o.hL = H(-0.9, -3.4, 3.6); o.hR = H(0.9, -3.4, 3.6); } },
+  excited:  { d: 1.8, desc: 'Fast bouncing, wide sparkly eyes, orbiters whirl: great news!', f: (u, d, o) => { const h = Math.abs(Math.sin(TAU * 3 * u)); o.y = 0.55 * h; o.sq = 0.1 * h - 0.03; o.eyes = 'star'; o.eyeScale = 0.12; o.mouth = 'smile'; o.glow = 0.2; o.satR = 1.6; o.satSpin = 6 * u; o.tint = 'gold'; o.tintAmt = 0.2; o.hL = H(-5.6, 1.2 + 0.5 * h, 0.8); o.hR = H(5.6, 1.2 + 0.5 * h, 0.8); } },
+  sleepy:   { d: 2.4, desc: 'Big slow yawn, droopy eyes, dims: tired / it is late.', f: (u, d, o) => { const yw = Math.sin(Math.PI * clamp(u / (d * 0.75), 0, 1)); o.eyes = yw > 0.5 ? 'sleep' : 'flat'; o.mouth = yw > 0.35 ? 'o' : 'none'; o.sq = 0.12 * yw; o.roll = 0.12 * yw; o.y = -0.4; o.glow = -0.25; o.dim = -0.15; } },
+  wave:     { d: 2.0, desc: 'Raises a hand and waves: hello / goodbye.', f: (u, d, o) => { o.hR = H(5.3 + 0.55 * Math.sin(TAU * 2.8 * u), 2.4, 1.2); o.eyes = 'happy'; o.blush = 0.5; o.roll = -0.07; o.mouth = 'smile'; } },
+  celebrate:{ d: 2.4, desc: 'Jumps with both hands up, cubes burst out: success / done!', f: (u, d, o) => { const j = Math.sin(Math.PI * clamp(u / 1.2, 0, 1)); o.y = 1.1 * j; o.sq = 0.12 * Math.sin(TAU * 2 * u); o.eyes = 'happy'; o.mouth = 'laugh'; o.glow = 0.2; o.satR = 3.5; o.satSpin = 4 * u; o.satY = 1.0; o.tint = 'gold'; o.tintAmt = 0.2; o.hL = H(-4.6 - 0.4 * Math.sin(TAU * 3 * u), 3.6, 0.8); o.hR = H(4.6 + 0.4 * Math.sin(TAU * 3 * u), 3.6, 0.8); } },
+  shrug:    { d: 1.8, desc: 'Hands up, tilt, glance away: no idea / whatever / not for me.', f: (u, d, o) => { o.hL = H(-5.9, 0.9, 1.4); o.hR = H(5.9, 0.9, 1.4); o.roll = 0.15; o.sq = 0.05; o.eyes = 'flat'; o.eyeX = -0.5; o.mouth = 'flat'; } },
+  focus:    { d: 2.2, desc: 'Leans in, eyes narrow, orbiters tighten: paying close attention.', f: (u, d, o) => { o.pitch = 0.16; o.z = 0.9; o.eyes = 'narrow'; o.satR = -2.0; o.satTilt = 0.9; o.tint = 'cyan'; o.tintAmt = 0.3; o.glow = 0.2; } }
+};
+const REACTION_NAMES = Object.keys(REACTIONS);
+const NUM_KEYS = ['pitch', 'yaw', 'roll', 'y', 'z', 'sq', 'scale', 'glow', 'core', 'think', 'satR', 'satY', 'satTilt', 'satSpin', 'eyeX', 'eyeY', 'eyeScale', 'blush', 'dim', 'tintAmt'];
+
+function reactionWeight(r, t) {
+  const u = t - r.t0, d = REACTIONS[r.name].d;
+  let w = smooth(0, 0.22, u) * (1 - smooth(d - 0.38, d, u));
+  if (r.tRel !== null) w = Math.min(w, r.wRel * (1 - smooth(r.tRel, r.tRel + 0.3, t)));
+  return w;
+}
+function triggerReaction(list, name, t) {
+  for (const r of list) if (r.tRel === null) { r.wRel = reactionWeight(r, t); r.tRel = t; }
+  list.push({ name, t0: t, tRel: null, wRel: 1 });
+  while (list.length > 4) list.shift();
+}
+const ro = {};
+const vA = new THREE.Vector3(), tintTmp = new THREE.Color();
+function applyReactions(list, pose, t, gain) {
+  let best = 0, bestEyes = null, bestMouth = null;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const r = list[i]; const w = reactionWeight(r, t) * gain;
+    if (t - r.t0 > REACTIONS[r.name].d || (r.tRel !== null && t > r.tRel + 0.3)) { list.splice(i, 1); continue; }
+    if (w <= 0) continue;
+    for (const k in ro) delete ro[k];
+    REACTIONS[r.name].f(t - r.t0, REACTIONS[r.name].d, ro);
+    for (const k of NUM_KEYS) if (ro[k] !== undefined) pose[k] += w * ro[k];
+    if (ro.tint) pose.tint.lerp(tintTmp.set(TH.tints[ro.tint]), w);
+    if (ro.hL) pose.hL.lerp(vA.fromArray(ro.hL), w);
+    if (ro.hR) pose.hR.lerp(vA.fromArray(ro.hR), w);
+    const ru = t - r.t0, rd = REACTIONS[r.name].d;
+    if (w > best && r.tRel === null && ru > 0.08 && ru < rd - 0.45) { best = w; bestEyes = ro.eyes || null; bestMouth = ro.mouth || null; }
+  }
+  if (bestEyes) pose.eyes = bestEyes;
+  if (bestMouth && pose.mouth !== 'speak') pose.mouth = bestMouth;
+}
+
+// ---------------------------------------------------------------- states
+const STATES = {
+  idle: 'Awake and floating: breathes, blinks, follows your finger, gets curious now and then.',
+  sleeping: 'Dozing: sleepy eyes, slow deep breaths, one cube drifts up like a "z".',
+  listening: 'Leans in, eyes widen, the orbit ring turns to face you and the front cubes ripple with mic level.',
+  thinking: 'Looks up, orbiters spin into a crown, a scan band climbs the body, hand to chin.',
+  speaking: 'Mouth pixels and the whole surface pulse with TTS amplitude (synthetic envelope).',
+  interrupted: 'Barge-in: quick flinch, o mouth, cubes scatter, then straight back to listening.',
+  ignored: 'Not talking to me: a small shrug, glance away, back to idle.',
+  notowner: 'Unknown voice: polite but reserved, leans back, narrow eyes, greyer, small head shake.',
+  error: 'Glitching: red tint, x eyes, cubes jitter and drop out.',
+  offline: 'Unplugged: dims, greys out, slumps, orbiters fall and rest.'
+};
+const STATE_LABEL = { notowner: 'not owner' };
+const BASE = { pitch: 0, yaw: 0, roll: 0, y: 0, z: 0, sq: 0, scale: 1, glow: 0.45, core: 0.6, listen: 0, speak: 0, think: 0,
+  jitter: 0, dim: 1, desat: 0, opacity: 1, tintAmt: 0, satR: 6.2, satW: 0.45, satY: 0.3, satTilt: 0.35, satVis: 1, satSpin: 0,
+  follow: 1, eyeScale: 1, eyeX: 0, eyeY: 0, blush: 0, handVis: 1, breath: 0.03, bobAmp: 0.25, halo: 1, sleep: 0, offline: 0 };
+const FAST = { jitter: 14, listen: 10, speak: 10, sq: 9, z: 8, satR: 5, blush: 8 };
+const HAND_L = new THREE.Vector3(-5.4, -1.4, 0.8), HAND_R = new THREE.Vector3(5.4, -1.4, 0.8);
+
+let state = 'idle', stateStart = 0, emotion = 'none', car = false;
+const P = Object.assign({}, BASE);
+const T = Object.assign({}, BASE);
+const tintCur = new THREE.Color(), tintTarget = new THREE.Color();
+const hLcur = HAND_L.clone(), hRcur = HAND_R.clone(), hLt = new THREE.Vector3(), hRt = new THREE.Vector3();
+let curEyes = 'open', curMouth = 'none';
+const liveReactions = [];
+
+function stateTargets(t, mic, amp) {
+  Object.assign(T, BASE);
+  hLt.copy(HAND_L); hRt.copy(HAND_R);
+  let eyes = 'open', mouth = 'none', tint = null;
+  const u = t - stateStart;
+  switch (state) {
+    case 'sleeping':
+      eyes = 'sleep'; T.breath = 0.06; T.y = -0.7; T.roll = 0.1; T.dim = 0.7; T.glow = 0.3; T.satW = 0.12; T.satY = -1.2; T.satR = 5.6;
+      T.follow = 0; T.sleep = 1; T.bobAmp = 0.12; hLt.set(-4.9, -2.8, 0.6); hRt.set(4.9, -2.8, 0.6); T.halo = 0.6; break;
+    case 'listening':
+      tint = 'listening'; T.tintAmt = 0.35; T.listen = 1; T.pitch = 0.13; T.z = 0.6; T.eyeScale = 1.12; T.scale = 1 + mic * 0.05;
+      T.glow = 0.5 + mic * 0.6; T.satTilt = 1.35; T.satR = 6.4 + mic * 1.6; T.satW = 0.35; T.roll = 0.06; hRt.set(5.0, 1.6, 0.6); break;
+    case 'thinking':
+      tint = 'thinking'; T.tintAmt = 0.4; T.think = 1; T.follow = 0; T.eyeX = 0.55; T.eyeY = 0.75; T.roll = -0.1; T.satY = 5.6; T.satR = 2.1;
+      T.satW = 3.0; T.satTilt = 0.1; T.core = 1.4; hRt.set(1.4, -3.0, 4.0); T.bobAmp = 0.15; break;
+    case 'speaking':
+      tint = 'speaking'; T.tintAmt = 0.12; T.speak = 1; mouth = 'speak'; T.sq = amp * 0.07; T.glow = 0.5 + amp * 0.7; T.satR = 5.8 + amp * 2.2;
+      T.satW = 0.9; T.follow = 0.6; hLt.y += Math.sin(t * 3.1) * amp * 1.2; hRt.y += Math.sin(t * 2.3 + 1) * amp * 1.2; break;
+    case 'interrupted': {
+      const k = Math.exp(-u * 4.5); tint = 'interrupted'; T.tintAmt = 0.5 * k + 0.15; T.sq = -0.25 * k; T.z = -1.6 * k; T.eyeScale = 1.2;
+      mouth = 'o'; T.satR = 6 + 5 * k; T.satW = 1.2; T.glow = 0.5 + 0.6 * k; T.listen = 0.5; break; }
+    case 'ignored':
+      eyes = 'flat'; tint = 'ignored'; T.tintAmt = 0.2; T.follow = 0.2; T.eyeX = -0.5; break;
+    case 'notowner':
+      tint = 'notowner'; T.tintAmt = 0.35; T.desat = 0.45; T.pitch = -0.1; T.z = -0.5; T.scale = 0.93; eyes = 'narrow'; T.follow = 0.3;
+      T.satR = 4.9; T.satW = 0.25; T.listen = 0.25; T.yaw = 0.26 * Math.sin(u * 13) * Math.exp(-u * 2.2); hLt.set(-4.8, -2.0, 0.3); hRt.set(4.8, -2.0, 0.3); break;
+    case 'error':
+      tint = 'error'; T.tintAmt = 0.55; eyes = 'x'; T.jitter = 1; T.roll = -0.08; T.y = -0.3; T.glow = 0.45 + 0.4 * (hash(Math.floor(t * 9)) > 0.7 ? 1 : 0);
+      T.satW = 0.2; T.follow = 0.1; break;
+    case 'offline':
+      tint = 'offline'; T.tintAmt = 0.4; T.desat = 0.8; T.dim = 0.45; T.opacity = 0.75; eyes = 'off'; T.y = -1.3; T.sq = -0.12; T.satY = -4.6;
+      T.satR = 3.6; T.satW = 0; T.satTilt = 0; T.follow = 0; T.breath = 0.008; T.bobAmp = 0.04; T.offline = 1; T.halo = 0.3;
+      hLt.set(-4.3, -4.9, 0.6); hRt.set(4.3, -4.9, 0.6); break;
+  }
+  const emoOk = ['idle', 'listening', 'speaking', 'thinking'].indexOf(state) >= 0;
+  if (emoOk && emotion === 'happy') { eyes = 'happy'; T.blush = 1; T.bobAmp += 0.12; tint = 'warm'; T.tintAmt = Math.max(T.tintAmt, 0.3); T.satW *= 1.4; if (mouth === 'none') mouth = 'smile'; }
+  if (emoOk && emotion === 'confused') { eyes = ['open', 'flat']; T.roll += 0.2; T.eyeX += 0.3 * Math.sin(t * 1.3); tint = 'blue'; T.tintAmt = Math.max(T.tintAmt, 0.2); if (mouth === 'none') mouth = 'wavy'; }
+  if (emoOk && emotion === 'apologetic') { eyes = 'sad'; T.y -= 0.45; T.scale *= 0.95; T.pitch -= 0.1; tint = 'lavender'; T.tintAmt = Math.max(T.tintAmt, 0.3); T.satW *= 0.6; T.satR -= 1; hLt.set(-0.8, -3.7, 3.6); hRt.set(0.8, -3.7, 3.6); if (mouth === 'none') mouth = 'frown'; }
+  if (car) {
+    T.satVis = 0; T.follow = 0; T.listen *= 0.3; T.speak *= 0.35; T.sq *= 0.3; T.bobAmp *= 0.35; T.dim *= 0.8; T.handVis = 0; T.halo *= 0.6;
+    if (state === 'idle' || state === 'listening' || state === 'speaking') { eyes = 'calm'; tint = 'car'; T.tintAmt = 0.35; }
+    if (mouth === 'speak') mouth = 'none';
+    T.core += amp * 1.0; T.pitch *= 0.4; T.z *= 0.3;
+  }
+  tintTarget.copy(tint ? tintTmp.set(TH.tints[tint]) : cTop);
+  return { eyes, mouth };
+}
+
+// ---------------------------------------------------------------- pose → instances
+const pose = Object.assign({}, BASE, { tint: new THREE.Color(), hL: new THREE.Vector3(), hR: new THREE.Vector3(), eyes: 'open', mouth: 'none', blink: 1, mic: 0, amp: 0 });
+const bq = new THREE.Quaternion(), eul = new THREE.Euler(), hq = new THREE.Quaternion(), sq4 = new THREE.Quaternion();
+const vP = new THREE.Vector3(), vS = new THREE.Vector3(), m4 = new THREE.Matrix4();
+const PX = new Float32Array(N), PY = new Float32Array(N), PZ = new Float32Array(N), SC = new Float32Array(N), SCY = new Float32Array(N), GL = new Float32Array(N);
+const QI = new Uint8Array(N); // 0 body quat, 1 hand quat, 2 sat quat
+const order = bodyIdx.slice();
+let satAng = 0;
+
+const spinQ = new THREE.Quaternion();
+function writeLayer(L_, idx, tb) {
+  const col = L_.col.array, fx = L_.fx.array;
+  spinQ.setFromEuler(eul.set(TAU * tb / L, TAU * tb / L * 0.75, 0));
+  for (let j = 0; j < idx.length; j++) {
+    const i = idx[j], it = items[i];
+    let qq = bq;
+    if (QI[i] === 1) { hq.setFromEuler(eul.set(0, 0, it.side * 0.35 + 0.15 * Math.cos(TAU * tb / L))); qq = sq4.copy(bq).multiply(hq); }
+    else if (QI[i] === 2) qq = spinQ;
+    const sc = SC[i];
+    m4.compose(vP.set(PX[i], PY[i], PZ[i]), qq, vS.set(sc, sc * SCY[i], sc));
+    L_.mesh.setMatrixAt(j, m4);
+    col[j * 3] = it.col.r; col[j * 3 + 1] = it.col.g; col[j * 3 + 2] = it.col.b;
+    const tintable = (it.k === K.SHELL || it.k === K.HAND || it.k === K.SAT) ? 1 : (it.k === K.CORE ? 0.4 : 0);
+    const boost = it.k === K.EYE || it.k === K.MOUTH || it.k === K.CATCH ? 1 : it.k === K.BLUSH ? 0.5 : it.k === K.CORE ? 0.15 : it.k === K.HAND ? 0.3 : it.k === K.SAT ? 0.35 : 0;
+    fx[j * 4] = GL[i]; fx[j * 4 + 1] = tintable; fx[j * 4 + 2] = boost; fx[j * 4 + 3] = 0;
+  }
+  L_.mesh.instanceMatrix.needsUpdate = true; L_.col.needsUpdate = true; L_.fx.needsUpdate = true;
+}
+function writeInstances(t, tb, dt, canonical) {
+  const p = pose, S = p.scale;
+  const bob = p.bobAmp * Math.cos(TAU * tb / L), breath = p.breath * Math.cos(TAU * 2 * tb / L);
+  const sqv = p.sq + breath, sy = 1 + sqv, sxz = 1 - sqv * 0.5, bodyY = p.y + bob;
+  bq.setFromEuler(eul.set(p.pitch, p.yaw, p.roll, 'YXZ'));
+  const eox = p.eyeX * 0.35, eoy = p.eyeY * 0.25, es = p.eyeScale, bl = p.blink;
+  const visRate = canonical ? 1 - Math.exp(-22 * dt) : damp(22, dt);
+  const bandY = ((t * 3.2) % 12) - 6;
+  const q = Math.floor(t * 14);
+  for (let i = 0; i < N; i++) {
+    const it = items[i];
+    let x, y, z, s = it.size, g = 0, sy2 = 1, target = 1;
+    QI[i] = 0;
+    if (it.k === K.HAND) {
+      const hp = it.side < 0 ? p.hL : p.hR;
+      x = hp.x; y = hp.y + 0.15 * Math.cos(TAU * tb / L + (it.side > 0 ? Math.PI : 0)); z = hp.z;
+      x *= S; y *= S; z *= S; g = p.glow + 0.3; target = p.handVis; QI[i] = 1;
+    } else if (it.k === K.SAT) {
+      let a, R, yo;
+      if (canonical) { a = it.idx * TAU / NSAT + 0.12 * (Math.cos(TAU * tb / L) - 1) + p.satSpin; R = p.satR; yo = 0; }
+      else { a = satAng * it.sf + it.ph + p.satSpin; R = p.satR * it.rf; yo = it.yo; }
+      const lx = R * Math.cos(a), lz = R * Math.sin(a);
+      const ly = yo * (1 - p.offline) + 0.45 * Math.sin(a * 2 + (canonical ? 0 : it.ph)) * (1 - p.offline);
+      const tl = p.satTilt;
+      x = lx; y = ly * Math.cos(tl) - lz * Math.sin(tl) + p.satY; z = ly * Math.sin(tl) + lz * Math.cos(tl);
+      g = 0.8 + p.speak * p.amp * 1.2 + p.listen * p.mic * 0.8; target = p.satVis; QI[i] = 2;
+      if (p.sleep > 0.01 && it.idx === 0) {
+        const uu = (t * 0.28) % 1; const bx = 2.2 + uu * 2.2, by = 4.4 + uu * 3.4;
+        x += (bx - x) * p.sleep; y += (by - y) * p.sleep; z += (1.2 - z) * p.sleep; s *= 1 + p.sleep * (Math.sin(Math.PI * uu) * 0.8 - 0.2);
+      }
+      if (p.jitter > 0.05) { x += (hash(i + q * 3.1) - 0.5) * p.jitter * 1.5; y += (hash(i * 1.7 + q) - 0.5) * p.jitter * 1.5; if (hash(i * 5.1 + q) < 0.2 * p.jitter) target = 0; }
+      x *= S; z *= S; y += bodyY * 0.6;
+    } else {
+      x = it.hx; y = it.hy; z = it.hz;
+      if (it.k === K.SHELL) {
+        const r = Math.hypot(x, y, z);
+        const dL = p.listen * p.mic * Math.max(0, it.nz) * 0.55 * (0.7 + 0.3 * Math.sin(t * 10 - y * 1.2));
+        const dS = p.speak * p.amp * 0.42 * (0.55 + 0.45 * Math.sin(t * 16 - r * 1.6));
+        const dd = dL + dS; x += it.nx * dd; y += it.ny * dd; z += it.nz * dd;
+        g = p.glow + 0.07 * Math.cos(TAU * 2 * tb / L + it.ph) + it.v * 0.1 + dd * 1.6 + p.think * 0.9 * Math.exp(-(y - bandY) * (y - bandY) * 1.2);
+      } else if (it.k === K.CORE) {
+        g = p.core * (0.75 + 0.25 * Math.cos(TAU * 3 * tb / L + it.ph)) + p.think * 0.7 * (0.5 + 0.5 * Math.sin(Math.atan2(y, x) * 2 + t * 6)) + p.speak * p.amp * 1.2;
+      } else if (it.k === K.EYE) {
+        target = eyeBit(p.eyes, it.side, it.r, it.c);
+        const cx = it.cx + eox, cy = it.cy + eoy;
+        x = cx + (it.hx - it.cx) * es; y = cy + (it.hy - it.cy) * es * bl; s *= es; sy2 = Math.max(bl, 0.3);
+        g = TH.eyeGlow;
+      } else if (it.k === K.CATCH) {
+        target = catchBit(p.eyes, it.side) * (bl > 0.6 ? 1 : 0);
+        x = it.cx + eox + (it.hx - it.cx) * es; y = it.cy + eoy + (it.hy - it.cy) * es; g = 1.6;
+      } else if (it.k === K.MOUTH) {
+        target = mouthBit(p.mouth, p.amp, it.r, it.c); x += eox * 0.4; g = TH.eyeGlow * 0.9;
+      } else if (it.k === K.BLUSH) {
+        g = 0.9;
+      }
+      if (p.jitter > 0.05 && hash(i * 7.13 + q * 1.7) < 0.35) {
+        x += (hash(i + q * 3.1) - 0.5) * p.jitter * 0.9; y += (hash(i * 2.3 + q) - 0.5) * p.jitter * 0.6;
+        if (hash(i * 3.3 + q) < 0.12 * p.jitter) target = 0;
+      }
+      x *= sxz * S; y = ((y + PIV) * sy - PIV) * S; z *= sxz * S;
+    }
+    it.vis += (target - it.vis) * visRate;
+    if (it.k === K.BLUSH) it.vis = clamp(p.blush, 0, 1); // already smooth; no lag so clips end exactly on the canonical frame
+    if (it.k !== K.SAT) {
+      vP.set(x, y, z).applyQuaternion(bq); x = vP.x; y = vP.y + bodyY; z = vP.z + p.z;
+    }
+    PX[i] = x; PY[i] = y; PZ[i] = z; SC[i] = s * clamp(it.vis, 0, 1); SCY[i] = sy2; GL[i] = g;
+  }
+  if (TH.depthWrite) order.sort((a, b) => PZ[a] - PZ[b]);
+  writeLayer(bodyL, order, tb);
+  writeLayer(faceL, faceIdx, tb);
+  uniforms.uTint.value.copy(p.tint); uniforms.uTintAmt.value = clamp(p.tintAmt, 0, 0.9);
+  uniforms.uOpacity.value = TH.opacity * p.opacity * (glowMode === 'cheap' && TH.name === 'dark' ? 1.15 : 1);
+  uniforms.uDim.value = Math.max(0.1, p.dim); uniforms.uDesat.value = p.desat;
+  halo.position.y = bodyY * 0.8;
+  halo.material.uniforms.uColor.value.copy(cTop).lerp(p.tint, clamp(p.tintAmt * 1.6, 0, 1));
+  halo.material.uniforms.uAlpha.value = TH.haloA * p.halo * clamp(0.6 + 0.6 * p.glow, 0.2, 1.6) * p.dim * (glowMode === 'cheap' || TH.name === 'light' ? 1.5 : 0.7);
+  shadow.scale.set(1 - 0.08 * (bodyY + 1), 1, 1);
+  shadow.material.uniforms.uAlpha.value = TH.shadowA * clamp(1 - bodyY * 0.15, 0.4, 1.4);
+}
+
+// ---------------------------------------------------------------- inputs
+const lvl = $('#lvl'), lvlv = $('#lvlv');
+lvl.addEventListener('input', () => { lvlv.textContent = (+lvl.value).toFixed(2); });
+const mic = { on: false, ctx: null, an: null, buf: null, stream: null, level: 0 };
+async function toggleMic() {
+  const btn = $('#mic'), note = $('#micnote');
+  if (mic.on) {
+    mic.stream.getTracks().forEach(t => t.stop()); mic.ctx.close(); mic.on = false;
+    btn.setAttribute('aria-pressed', 'false'); btn.textContent = 'Use microphone'; lvl.disabled = false; note.textContent = ''; return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { note.textContent = 'Microphone needs https or localhost.'; note.className = 'note warn'; return; }
+  try {
+    mic.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    mic.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = mic.ctx.createMediaStreamSource(mic.stream);
+    mic.an = mic.ctx.createAnalyser(); mic.an.fftSize = 1024; src.connect(mic.an);
+    mic.buf = new Float32Array(mic.an.fftSize); mic.on = true;
+    btn.setAttribute('aria-pressed', 'true'); btn.textContent = 'Microphone on'; lvl.disabled = true;
+    note.className = 'note'; note.textContent = 'Live level drives Listening.';
+    if (state !== 'listening') setState('listening');
+  } catch (e) { note.textContent = 'Mic unavailable: ' + (e.name || e.message); note.className = 'note warn'; }
+}
+$('#mic').addEventListener('click', toggleMic);
+function micLevel(t) {
+  if (mic.on) {
+    mic.an.getFloatTimeDomainData(mic.buf);
+    let s = 0; for (let i = 0; i < mic.buf.length; i++) s += mic.buf[i] * mic.buf[i];
+    const db = 20 * Math.log10(Math.sqrt(s / mic.buf.length) + 1e-8);
+    const v = clamp((db + 58) / 45, 0, 1);
+    mic.level += (v - mic.level) * (v > mic.level ? 0.5 : 0.12);
+    lvl.value = mic.level; lvlv.textContent = mic.level.toFixed(2);
+    return mic.level;
+  }
+  const b = +lvl.value; return clamp(b * (0.82 + 0.18 * Math.sin(t * 7.3) * Math.sin(t * 2.1 + 1)), 0, 1);
+}
+// synthetic TTS amplitude: syllables (110–250 ms) grouped into words and sentences with pauses
+const tts = { sylStart: 0, sylDur: 0, peak: 0, gapUntil: 0, sylLeft: 0, wordsLeft: 0, val: 0 };
+function ttsAmp(t, active) {
+  let target = 0;
+  if (active) {
+    if (t >= tts.sylStart + tts.sylDur && t >= tts.gapUntil) {
+      if (--tts.sylLeft <= 0) {
+        tts.sylLeft = 1 + Math.floor(Math.random() * 3); let gap = 0.06 + Math.random() * 0.12;
+        if (--tts.wordsLeft <= 0) { tts.wordsLeft = 4 + Math.floor(Math.random() * 7); gap = 0.55 + Math.random() * 0.5; }
+        tts.gapUntil = t + gap;
+      }
+      tts.sylStart = Math.max(t, tts.gapUntil); tts.sylDur = 0.11 + Math.random() * 0.14; tts.peak = 0.4 + Math.random() * 0.6;
+    }
+    if (t >= tts.sylStart) { const u = clamp((t - tts.sylStart) / tts.sylDur, 0, 1); target = tts.peak * Math.pow(Math.sin(Math.PI * u), 0.6) * (0.85 + 0.15 * Math.sin(t * 90)); }
+  }
+  tts.val += (target - tts.val) * (target > tts.val ? 0.6 : 0.25);
+  return tts.val;
+}
+// gaze
+const gaze = { x: 0, y: 0, tx: 0, ty: 0, last: -10, wanderAt: 0 };
+function pointerTo(e) {
+  const r = stageEl.getBoundingClientRect();
+  gaze.tx = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1.3, 1.3);
+  gaze.ty = clamp(-(((e.clientY - r.top) / r.height) * 2 - 1), -1.3, 1.3);
+  gaze.last = clock;
+}
+window.addEventListener('pointermove', pointerTo, { passive: true });
+canvas.addEventListener('pointerdown', e => { pointerTo(e); poke(); });
+let pokeAt = -10;
+function poke() {
+  pokeAt = clock;
+  if (state === 'sleeping') { setState('idle'); triggerReaction(liveReactions, 'surprised', clock); }
+  else if (state === 'offline' || state === 'error') triggerReaction(liveReactions, 'shake', clock);
+  else triggerReaction(liveReactions, Math.random() < 0.5 ? 'happy' : 'shy', clock);
+}
+// blink + curiosity
+const blink = { next: 2, start: -1, dbl: false };
+let curious = { next: 6, start: -10, dir: 1 };
+function blinkValue(t) {
+  if (t > blink.next) { blink.start = t; blink.dbl = Math.random() < 0.2; blink.next = t + 2.2 + Math.random() * 4 * (car ? 1.8 : 1); }
+  const u = t - blink.start;
+  if (u >= 0 && u < 0.15) return 1 - Math.sin(Math.PI * u / 0.15);
+  if (blink.dbl && u >= 0.22 && u < 0.37) return 1 - Math.sin(Math.PI * (u - 0.22) / 0.15);
+  return 1;
+}
+
+// ---------------------------------------------------------------- UI
+function setState(s) {
+  state = s; stateStart = clock;
+  if (s === 'ignored') triggerReaction(liveReactions, 'shrug', clock);
+  document.querySelectorAll('#states button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === s)));
+  $('#lbl').textContent = STATE_LABEL[s] || s;
+  $('#desc').textContent = (car ? 'Car mode: calm overlay, no orbiters or gaze. ' : '') + STATES[s];
+}
+function chipGroup(el, values, onPick, labels) {
+  for (const v of values) {
+    const b = document.createElement('button'); b.dataset.v = v; b.textContent = (labels && labels[v]) || v.replace('_', ' ');
+    b.setAttribute('aria-pressed', 'false'); b.addEventListener('click', () => onPick(v, b)); el.appendChild(b);
+  }
+}
+chipGroup($('#states'), Object.keys(STATES), v => { stopDemo(); setState(v); }, STATE_LABEL);
+chipGroup($('#emotions'), ['none', 'happy', 'confused', 'apologetic'], v => { stopDemo(); setEmotion(v); });
+function setEmotion(v) { emotion = v; document.querySelectorAll('#emotions button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); $('#lbl2').textContent = v === 'none' ? '' : '· ' + v; }
+const rEl = $('#reactions');
+for (const name of REACTION_NAMES) {
+  const b = document.createElement('button'); b.className = 'react'; b.textContent = name.replace('_', ' '); b.title = REACTIONS[name].desc;
+  b.addEventListener('click', () => {
+    triggerReaction(liveReactions, name, clock);
+    $('#desc').textContent = name.replace('_', ' ') + ': ' + REACTIONS[name].desc;
+    b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 250);
+  });
+  rEl.appendChild(b);
+}
+$('#car').addEventListener('click', e => { car = !car; e.currentTarget.setAttribute('aria-pressed', String(car)); setState(state); });
+chipGroup($('#glow'), ['bloom', 'cheap'], v => { glowMode = v; autoNote = ''; syncDisplayChips(); }, { bloom: 'Glow: bloom', cheap: 'Glow: cheap (no post)' });
+chipGroup($('#theme'), ['auto', 'light', 'dark'], v => {
+  if (v === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v;
+  applyTheme(themeName()); syncDisplayChips();
+}, { auto: 'Theme: auto', light: 'Light', dark: 'Dark' });
+function syncDisplayChips() {
+  document.querySelectorAll('#glow button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === glowMode)));
+  const tv = document.documentElement.dataset.theme || 'auto';
+  document.querySelectorAll('#theme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === tv)));
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!document.documentElement.dataset.theme) applyTheme(themeName()); });
+
+// auto demo
+const DEMO = [['idle', 'none', 3.5], ['listening', 'none', 4], ['thinking', 'none', 3.5], ['speaking', 'none', 3], ['speaking', 'none', 2.5, 'nod'],
+  ['speaking', 'happy', 4, 'laugh'], ['interrupted', 'none', 2.5], ['ignored', 'none', 3], ['idle', 'confused', 3.5], ['speaking', 'apologetic', 4, 'sad'],
+  ['idle', 'none', 2.5, 'wave'], ['idle', 'none', 3, 'celebrate'], ['notowner', 'none', 4], ['error', 'none', 3.5], ['offline', 'none', 3.5], ['sleeping', 'none', 4.5]];
+let demo = { on: false, i: 0, next: 0 };
+function stopDemo() { demo.on = false; $('#demo').setAttribute('aria-pressed', 'false'); }
+$('#demo').addEventListener('click', () => { demo.on = !demo.on; demo.i = 0; demo.next = clock; $('#demo').setAttribute('aria-pressed', String(demo.on)); });
+function demoStep(t) {
+  if (!demo.on || t < demo.next) return;
+  const d = DEMO[demo.i % DEMO.length]; demo.i++;
+  setEmotion(d[1]); setState(d[0]); if (d[3]) setTimeout(() => triggerReaction(liveReactions, d[3], clock), 500);
+  demo.next = t + d[2];
+}
+
+// ---------------------------------------------------------------- live loop
+let clock = 0, last = performance.now(), exporting = false;
+let fpsAcc = 0, fpsN = 0, fpsT = 0, slowSecs = 0, autoNote = '', autoOff = false;
+function liveStep(dt) {
+  const t = clock;
+  demoStep(t);
+  if (state === 'interrupted' && t - stateStart > 1.2) setState('listening');
+  if (state === 'ignored' && t - stateStart > 2.4) setState('idle');
+  const m = micLevel(t), a = ttsAmp(t, state === 'speaking');
+  const fm = stateTargets(t, m, a);
+  if (state === 'idle' && !car) {
+    if (t > curious.next) { curious.start = t; curious.dir = Math.random() < 0.5 ? -1 : 1; curious.next = t + 6 + Math.random() * 6; }
+    const cu = t - curious.start; T.roll += curious.dir * 0.17 * smooth(0, 0.4, cu) * (1 - smooth(1.4, 1.9, cu));
+  }
+  const pu = t - pokeAt; if (pu < 0.9) T.sq += -0.16 * Math.exp(-pu * 5) * Math.cos(pu * 18);
+  for (const k in BASE) P[k] += (T[k] - P[k]) * damp(FAST[k] || 6, dt);
+  tintCur.lerp(tintTarget, damp(5, dt));
+  hLcur.lerp(hLt, damp(7, dt)); hRcur.lerp(hRt, damp(7, dt));
+  satAng += P.satW * dt;
+  // gaze: pointer if recent, otherwise wander
+  let gx = gaze.tx, gy = gaze.ty;
+  if (t - gaze.last > 2.5) {
+    if (t > gaze.wanderAt) { gaze.wx = (Math.random() - 0.5) * 1.2; gaze.wy = (Math.random() - 0.5) * 0.7; gaze.wanderAt = t + 1.5 + Math.random() * 2.5; }
+    gx = gaze.wx || 0; gy = gaze.wy || 0;
+  }
+  gaze.x += (gx * P.follow - gaze.x) * damp(5, dt); gaze.y += (gy * P.follow - gaze.y) * damp(5, dt);
+  Object.assign(pose, P);
+  pose.tint.copy(tintCur); pose.hL.copy(hLcur); pose.hR.copy(hRcur);
+  pose.yaw += gaze.x * 0.36; pose.pitch -= gaze.y * 0.16; pose.roll -= gaze.x * 0.04;
+  pose.eyeX += gaze.x * 0.9; pose.eyeY += gaze.y * 0.9;
+  pose.eyes = fm.eyes; pose.mouth = fm.mouth; pose.mic = m; pose.amp = car ? 0 : a;
+  pose.blink = (state === 'sleeping' || state === 'offline') ? 1 : blinkValue(t);
+  applyReactions(liveReactions, pose, t, car ? 0.4 : 1);
+  writeInstances(t, t, dt, false);
+  $('#mMic').style.width = (m * 100).toFixed(0) + '%'; $('#mTts').style.width = (a * 100).toFixed(0) + '%';
+}
+function render() {
+  renderer.info.reset();
+  bloom.enabled = bloomOn();
+  if (bloom.enabled) composer.render(); else renderer.render(scene, camera);
+}
+function loop(now) {
+  requestAnimationFrame(loop);
+  if (exporting) return;
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
+  liveStep(dt); render();
+  fpsAcc += dt; fpsN++; fpsT += dt;
+  if (fpsT > 0.5) {
+    const fps = fpsN / fpsAcc;
+    $('#fps').textContent = fps.toFixed(0) + ' fps · ' + N + ' cubes · ' + renderer.info.render.calls + ' draws';
+    if (bloom.enabled && fps < 45) slowSecs += fpsT; else slowSecs = 0;
+    if (slowSecs > 3 && !autoOff) { glowMode = 'cheap'; autoNote = 'Switched to cheap glow automatically (frame rate dropped below 45 fps with bloom).'; syncDisplayChips(); slowSecs = 0; }
+    $('#perfnote').textContent = autoNote || ('DPR ' + dpr + (TH.name === 'light' ? ' · bloom is skipped in light mode (halo only)' : ''));
+    fpsAcc = 0; fpsN = 0; fpsT = 0;
+  }
+}
+
+// ---------------------------------------------------------------- export (canonical clips)
+const clipSel = $('#clip');
+for (const v of ['idle_loop'].concat(REACTION_NAMES)) { const o = document.createElement('option'); o.value = v; o.textContent = v; clipSel.appendChild(o); }
+function canonicalPose() {
+  Object.assign(pose, BASE);
+  pose.tint.copy(cTop); pose.hL.copy(HAND_L); pose.hR.copy(HAND_R);
+  pose.eyes = 'open'; pose.mouth = 'none'; pose.blink = 1; pose.mic = 0; pose.amp = 0;
+}
+function canonicalVis() {
+  canonicalPose();
+  for (const it of items) {
+    if (it.k === K.EYE) it.vis = eyeBit('open', it.side, it.r, it.c);
+    else if (it.k === K.MOUTH || it.k === K.BLUSH) it.vis = 0; else it.vis = 1;
+  }
+}
+async function exportClip(name, S, fps, download) {
+  const SUB = 4, dtSub = 1 / (fps * SUB);
+  const dur = name === 'idle_loop' ? L : REACTIONS[name].d;
+  const frames = name === 'idle_loop' ? Math.round(L * fps) : Math.round(dur * fps) + 1; // reactions include both canonical endpoints
+  const cols = Math.min(8, frames), rows = Math.ceil(frames / cols);
+  const sheet = document.createElement('canvas'); sheet.width = cols * S; sheet.height = rows * S;
+  const ctx = sheet.getContext('2d', { willReadFrequently: true });
+  const list = [];
+  canonicalVis();
+  if (name !== 'idle_loop') triggerReaction(list, name, 0);
+  let tSim = 0;
+  for (let f = 0; f < frames; f++) {
+    const tF = f / fps;
+    while (tSim < tF - 1e-6) { stepCanon(name, list, tSim, dtSub); tSim += dtSub; }
+    stepCanon(name, list, tF, 0);
+    render();
+    ctx.drawImage(renderer.domElement, (f % cols) * S, Math.floor(f / cols) * S, S, S);
+    if (f % 8 === 7) await new Promise(r => setTimeout(r, 0));
+  }
+  // seam check: first frame vs last frame (reactions) — both must equal canonical idle frame 0
+  let seam = null;
+  if (name !== 'idle_loop') {
+    const a = ctx.getImageData(0, 0, S, S).data, lf = frames - 1;
+    const b = ctx.getImageData((lf % cols) * S, Math.floor(lf / cols) * S, S, S).data;
+    let mx = 0; for (let i = 0; i < a.length; i += 4) mx = Math.max(mx, Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]));
+    seam = mx;
+  }
+  const blob = await new Promise(r => sheet.toBlob(r, 'image/png'));
+  const fname = `laura_${name}_${S}px_${fps}fps_${frames}f_${cols}x${rows}.png`;
+  if (download) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+  return { name, file: fname, size: S, fps, frames, cols, rows, loop: name === 'idle_loop', durationMs: Math.round(frames / fps * 1000), bytes: blob.size, seamMaxDiff: seam, sheet };
+}
+function stepCanon(name, list, t, dt) {
+  canonicalPose();
+  if (name === 'idle_loop') {
+    const u = t - L * 0.55; pose.blink = (u >= 0 && u < 0.15) ? 1 - Math.sin(Math.PI * u / 0.15) : 1;
+    writeInstances(t, t, dt || 1e-4, true);
+  } else {
+    applyReactions(list, pose, t, 1);
+    writeInstances(t, 0, dt || 1e-4, true); // idle base frozen at loop phase 0 (zero velocity there: all base oscillators are cosines)
+  }
+}
+async function runExport(names) {
+  if (exporting) return;
+  const S = +$('#size').value, fps = +$('#efps').value, note = $('#expnote');
+  exporting = true;
+  const prevTheme = TH.name, prevGlow = glowMode;
+  glowMode = 'cheap'; // OLED watch: true black background, no post-process haze
+  applyTheme('dark', '#000000');
+  renderer.setPixelRatio(1); renderer.setSize(S, S, false); composer.setPixelRatio(1); composer.setSize(S, S); frame(S, S);
+  const manifest = { canonical: 'idle_loop frame 0', idleLoopSeconds: L, background: '#000000', clips: [] };
+  let lastRes = null;
+  try {
+    for (const n of names) {
+      note.textContent = 'Rendering ' + n + '…';
+      lastRes = await exportClip(n, S, fps, true);
+      const { sheet, ...meta } = lastRes; manifest.clips.push(meta);
+      await new Promise(r => setTimeout(r, 350));
+    }
+    if (names.length > 1) {
+      const b = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'laura_clips_manifest.json'; a.click();
+    }
+    const tot = manifest.clips.reduce((s, c) => s + c.bytes, 0);
+    note.textContent = names.length === 1
+      ? `${lastRes.file}: ${lastRes.frames} frames, ${(lastRes.bytes / 1024).toFixed(0)} KB PNG` + (lastRes.seamMaxDiff === null ? ' (loop)' : `, seam max channel diff ${lastRes.seamMaxDiff}/255`)
+      : `${names.length} clips, ${(tot / 1024).toFixed(0)} KB PNG total; worst seam diff ${Math.max(0, ...manifest.clips.map(c => c.seamMaxDiff || 0))}/255. Manifest downloaded.`;
+    previewSheet(lastRes);
+  } catch (e) { note.textContent = 'Export failed: ' + e.message; }
+  canonicalVis();
+  glowMode = prevGlow; applyTheme(prevTheme); resize(); exporting = false; last = performance.now();
+}
+let prevTimer = 0;
+function previewSheet(r) {
+  const pc = $('#preview'), px = pc.getContext('2d'); clearInterval(prevTimer);
+  let f = 0;
+  prevTimer = setInterval(() => {
+    px.clearRect(0, 0, 256, 256);
+    px.drawImage(r.sheet, (f % r.cols) * r.size, Math.floor(f / r.cols) * r.size, r.size, r.size, 0, 0, 256, 256);
+    f = (f + 1) % r.frames;
+  }, 1000 / r.fps);
+}
+$('#exp1').addEventListener('click', () => runExport([clipSel.value]));
+$('#expAll').addEventListener('click', () => runExport(['idle_loop'].concat(REACTION_NAMES)));
+
+// ---------------------------------------------------------------- go
+applyTheme(themeName());
+syncDisplayChips(); setEmotion('none'); setState('idle'); resize();
+requestAnimationFrame(loop);
+window.__avatar = { setState, setEmotion, setGlow: v => { glowMode = v; syncDisplayChips(); }, noAuto: () => { autoOff = true; }, triggerReaction: n => triggerReaction(liveReactions, n, clock), runExport, items: N };
+</script>
+</body>
+</html>

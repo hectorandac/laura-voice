@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher"
+        android:shortcutId="talk"
+        android:shortcutLongLabel="@string/invoke_long"
+        android:shortcutShortLabel="@string/invoke_short">
+        <intent
+            android:action="dev.hect.lauravoice.INVOKE"
+            android:targetClass="dev.hect.lauravoice.invocation.InvokeActivity"
+            android:targetPackage="dev.hect.lauravoice">
+            <extra android:name="source" android:value="shortcut" />
+        </intent>
+    </shortcut>
+</shortcuts>

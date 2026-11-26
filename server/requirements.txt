@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.11.0+cu128
+torchaudio==2.11.0+cu128
+nemo_toolkit[asr] @ git+https://github.com/NVIDIA/NeMo.git@e4a34fd25f895ecd7f64f0e56bc288165e078da9
+silero-vad==6.3
+av==19.0.2
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+huggingface_hub==2.4.0
+numpy==2.5.5
+num2words==0.5.14

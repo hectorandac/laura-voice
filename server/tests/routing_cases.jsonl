@@ -1,0 +1,38 @@
+{"text": "hey Laura, good morning", "route": "local"}
+{"text": "what time is it", "route": "local"}
+{"text": "thanks, that's all", "route": "local"}
+{"text": "how do you say 'see you tomorrow' in Korean", "route": "local"}
+{"text": "remind me what we were just talking about", "route": "local"}
+{"text": "tell me a short joke", "route": "local"}
+{"text": "what's three times seventeen", "route": "local"}
+{"text": "spell that again", "route": "local"}
+{"text": "좋은 아침이야", "route": "local"}
+{"text": "고마워, 됐어", "route": "local"}
+{"text": "오늘 무슨 요일이야", "route": "local"}
+{"text": "why is the sky blue, just quickly", "route": "local"}
+{"text": "explain how transformers handle long context and what the trade-offs of sliding-window attention are", "route": "deep"}
+{"text": "should I keep the 27B model on the laptop or just the 9B? weigh it up", "route": "deep"}
+{"text": "help me plan how to tell my professor the preprint will be late", "route": "deep"}
+{"text": "what's the difference between a Roth and a traditional IRA for someone moving to the US next year", "route": "deep"}
+{"text": "write me a regex that matches Korean phone numbers with or without dashes", "route": "deep"}
+{"text": "I'm torn between two job offers, one pays more and one has better research, how should I think about it", "route": "deep"}
+{"text": "Laura, think about this properly: is a static gate always worse than a dynamic one", "route": "deep", "forced": true}
+{"text": "take your time on this one, why does my model overfit after epoch twenty", "route": "deep", "forced": true}
+{"text": "think deeper, what would break if I moved the cluster to IPv6 only", "route": "deep", "forced": true}
+{"text": "이거 깊게 생각해봐, 대구에서 서울로 이사하는 게 나을까", "route": "deep", "forced": true}
+{"text": "잘 생각해보고 대답해줘, 박사 과정 지원 시기는 언제가 좋을까", "route": "deep", "forced": true}
+{"text": "piénsalo bien, ¿vale la pena aprender Rust este año?", "route": "deep", "forced": true}
+{"text": "양자 컴퓨팅이 암호화에 어떤 영향을 주는지 자세히 설명해줘", "route": "deep"}
+{"text": "is the server's disk getting full", "route": "task"}
+{"text": "turn off the cold storage plug", "route": "task"}
+{"text": "what's on my calendar tomorrow", "route": "task"}
+{"text": "how much did I spend on groceries this month", "route": "task"}
+{"text": "send Matrix a note that I'll be late", "route": "task"}
+{"text": "what's the weather in Daegu right now", "route": "task"}
+{"text": "remind me at six to call my mom", "route": "task"}
+{"text": "check why Sonarr isn't downloading anything", "route": "task"}
+{"text": "서버 상태 좀 확인해줘", "route": "task"}
+{"text": "내일 아침 일곱 시에 알람 맞춰줘", "route": "task"}
+{"text": "think about this properly and then restart jellyfin if it's stuck", "route": "task", "forced": true}
+{"text": "who won the game last night", "route": "task"}
+{"text": "what's the latest version of k3s", "route": "task"}

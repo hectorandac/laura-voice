@@ -1,0 +1,6 @@
+apiVersion: v2
+name: laura-voice
+description: Always-on voice interface for a Hermes agent on one GPU node (local LLM, TTS and voice gateway).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

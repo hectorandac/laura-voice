@@ -1,0 +1,88 @@
+{{- if .Values.llm.enabled }}
+{{- $c := dict "root" . "component" "llm" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "lv.name" . }}-llm-presets
+  labels: {{- include "lv.labels" . | nindent 4 }}
+data:
+  models.ini: |
+{{ .Values.llm.presets | indent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "lv.name" . }}-llm
+  labels: {{- include "lv.labels" . | nindent 4 }}
+    app.kubernetes.io/component: llm
+spec:
+  replicas: 1
+  # One GPU: never run two copies, even during a rollout.
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: {{- include "lv.selector" $c | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "lv.selector" $c | nindent 8 }}
+      annotations:
+        checksum/presets: {{ .Values.llm.presets | sha256sum | trunc 16 }}
+    spec:
+      {{- include "lv.placement" . | nindent 6 }}
+      containers:
+        - name: llama-server
+          image: {{ include "lv.image" (dict "root" . "image" .Values.llm.image) }}
+          imagePullPolicy: {{ .Values.llm.image.pullPolicy }}
+          args:
+            - --host
+            - 0.0.0.0
+            - --port
+            - {{ .Values.llm.port | quote }}
+            - --models-preset
+            - /config/models.ini
+            - --models-max
+            - {{ .Values.llm.maxLoaded | quote }}
+            {{- range .Values.llm.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          ports:
+            - { name: http, containerPort: {{ .Values.llm.port }} }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 30
+            failureThreshold: 5
+          {{- if .Values.llm.preload }}
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - sh
+                  - -c
+                  - >-
+                    for i in $(seq 1 90); do
+                    curl -sf -o /dev/null -H 'content-type: application/json'
+                    -d '{"model":"{{ .Values.llm.defaultModel }}","max_tokens":1,"messages":[{"role":"user","content":"hi"}]}'
+                    http://127.0.0.1:{{ .Values.llm.port }}/v1/chat/completions && exit 0; sleep 2; done; exit 0
+          {{- end }}
+          resources: {{- include "lv.resources" (dict "root" . "res" .Values.llm.resources "gpu" true) | nindent 12 }}
+          volumeMounts:
+            - { name: models, mountPath: /models, readOnly: true }
+            - { name: presets, mountPath: /config, readOnly: true }
+      volumes:
+        - name: models
+          hostPath: { path: {{ .Values.llm.modelsHostPath }}, type: Directory }
+        - name: presets
+          configMap: { name: {{ include "lv.name" . }}-llm-presets }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "lv.name" . }}-llm
+  labels: {{- include "lv.labels" . | nindent 4 }}
+spec:
+  selector: {{- include "lv.selector" $c | nindent 4 }}
+  ports:
+    - { name: http, port: {{ .Values.llm.port }}, targetPort: http }
+{{- end }}

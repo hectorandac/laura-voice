@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff==0.17.6 pytest==9.2.0 fastapi==0.115.6 httpx==0.28.1
+      - run: ruff check .
+      - run: pytest -q
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.18.3
+      - run: helm lint deploy/helm/laura-voice
+      - run: >-
+          helm template voice deploy/helm/laura-voice
+          --set imageRegistry=registry.example.com/laura-voice
+          --set 'tls.certificate.ipAddresses={10.0.0.5}'
+          --set 'llm.allowedNamespaces={hermes}' --set 'gateway.allowedNamespaces={hermes}'
+          --set ingress.enabled=true --set ingress.host=voice.example.com > /dev/null

@@ -1,0 +1,27 @@
+[laura-voice]
+# Gateway URL and access key. The key can also come from LAURA_VOICE_KEY.
+url = wss://gateway.example:8443/ws
+key =
+# Self-signed gateway: pin its certificate (laura_voice.py fingerprint wss://host:8443),
+# or point ca_file at the PEM. Leave both empty for a publicly trusted certificate.
+pin_sha256 =
+ca_file =
+lang = auto
+# opus (needs libopus0) or pcm
+codec = opus
+# Any command that writes 16 kHz mono S16_LE to stdout / reads it from stdin ({rate} is filled in).
+# ReSpeaker USB Mic Array v2.0 (1-channel firmware): -D plughw:ArrayUAC10,0
+capture = arecord -q -t raw -f S16_LE -c 1 -r 16000 -D default
+playback = aplay -q -t raw -f S16_LE -c 1 -r {rate} -D default
+# PulseAudio instead:
+# capture = parec --raw --format=s16le --channels=1 --rate=16000 --latency-msec=50
+# playback = pacat --raw --format=s16le --channels=1 --rate={rate} --latency-msec=100
+# yes: ignore the mic while a reply plays (speaker and mic in one box, no echo cancellation).
+# no: full duplex with voice barge-in; only with hardware AEC (ReSpeaker fed from its own output).
+half_duplex = yes
+barge_rms = 0.02
+gate_min = 0.002
+# After another device takes over (close 4000): 0 = wait for SIGUSR1, else retry after N seconds.
+takeover_resume_s = 0
+# Sent as context.device, e.g. living-room
+device =

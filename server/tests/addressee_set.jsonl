@@ -1,0 +1,72 @@
+{"text": "Laura, what's the weather going to be like tomorrow?", "label": 1, "kind": "name"}
+{"text": "Hey Laura set a timer for ten minutes", "label": 1, "kind": "name"}
+{"text": "Can you remind me to call my mom at seven, Laura?", "label": 1, "kind": "name"}
+{"text": "Lora, how long should I boil an egg?", "label": 1, "kind": "name_asr"}
+{"text": "로라야 내일 아침 일곱 시에 깨워 줘", "label": 1, "kind": "name"}
+{"text": "로라 지금 몇 시야?", "label": 1, "kind": "name"}
+{"text": "라우라 오늘 저녁 뭐 먹을까?", "label": 1, "kind": "name_asr"}
+{"text": "로라한테 물어보자 대구에서 부산까지 얼마나 걸려?", "label": 1, "kind": "name"}
+{"text": "What's a good recipe with eggs, rice and kimchi?", "label": 1, "kind": "request"}
+{"text": "Set a timer for fifteen minutes.", "label": 1, "kind": "request"}
+{"text": "How do you say thank you in Spanish?", "label": 1, "kind": "request"}
+{"text": "Can you explain how a heat pump works in a couple of sentences?", "label": 1, "kind": "request"}
+{"text": "Remind me to buy milk on the way home.", "label": 1, "kind": "request"}
+{"text": "What's the capital of Australia?", "label": 1, "kind": "request"}
+{"text": "Give me a quick idea for a birthday present for my dad.", "label": 1, "kind": "request"}
+{"text": "Tell me a joke.", "label": 1, "kind": "request"}
+{"text": "How many tablespoons are in a cup?", "label": 1, "kind": "request"}
+{"text": "Translate good morning into Korean for me.", "label": 1, "kind": "request"}
+{"text": "Okay, and what about the day after?", "label": 1, "kind": "followup"}
+{"text": "Could you make that shorter?", "label": 1, "kind": "followup"}
+{"text": "Wait, say that again?", "label": 1, "kind": "followup"}
+{"text": "김치찌개 맛있게 끓이는 방법 좀 알려 줘", "label": 1, "kind": "request"}
+{"text": "십 분 타이머 맞춰 줘", "label": 1, "kind": "request"}
+{"text": "고맙다를 영어로 어떻게 말해?", "label": 1, "kind": "request"}
+{"text": "오늘 몇 월 며칠이야?", "label": 1, "kind": "request"}
+{"text": "퇴근길에 우유 사라고 알려 줘", "label": 1, "kind": "request"}
+{"text": "열 받을 때 마음 진정시키는 방법 좀 알려 줄래?", "label": 1, "kind": "request"}
+{"text": "삼십 곱하기 이십칠은 얼마야?", "label": 1, "kind": "request"}
+{"text": "그거 좀 더 짧게 말해 줘", "label": 1, "kind": "followup"}
+{"text": "다시 한 번 말해 줄래?", "label": 1, "kind": "followup"}
+{"text": "Honey, did you take the trash out?", "label": 0, "kind": "to_person"}
+{"text": "Can you pass me the salt?", "label": 0, "kind": "to_person"}
+{"text": "Babe, what do you want for dinner tonight?", "label": 0, "kind": "to_person"}
+{"text": "Yeah, I'll be there around six, see you then.", "label": 0, "kind": "phone"}
+{"text": "No, I told him the meeting got moved to Thursday.", "label": 0, "kind": "phone"}
+{"text": "Where did I put my keys?", "label": 0, "kind": "thinking"}
+{"text": "Ugh, why is this not compiling.", "label": 0, "kind": "thinking"}
+{"text": "Okay, so first the loss, then the gradient, then the optimizer step.", "label": 0, "kind": "thinking"}
+{"text": "And now the weather for the weekend: heavy rain is expected across the southern provinces.", "label": 0, "kind": "tv"}
+{"text": "Stay tuned, after the break we'll be talking to the director of the film.", "label": 0, "kind": "tv"}
+{"text": "Don't forget to like and subscribe and hit that notification bell.", "label": 0, "kind": "tv"}
+{"text": "Officers arrived at the scene shortly after midnight, according to the police report.", "label": 0, "kind": "tv"}
+{"text": "I don't know, I think the blue one looks better on you.", "label": 0, "kind": "to_person"}
+{"text": "We trained a LoRA adapter on the new data and it helped a lot.", "label": 0, "kind": "to_person"}
+{"text": "My sister Laura is coming over on Saturday.", "label": 0, "kind": "name_mention"}
+{"text": "여보 쓰레기 버렸어?", "label": 0, "kind": "to_person"}
+{"text": "엄마 나 오늘 좀 늦을 것 같아", "label": 0, "kind": "phone"}
+{"text": "아 이거 왜 안 되지", "label": 0, "kind": "thinking"}
+{"text": "열쇠 어디 뒀더라", "label": 0, "kind": "thinking"}
+{"text": "네 네 알겠습니다 그럼 내일 뵙겠습니다", "label": 0, "kind": "phone"}
+{"text": "그거 말고 저기 파란 거 가져와", "label": 0, "kind": "to_person"}
+{"text": "이번 주 주말에는 전국에 많은 비가 내릴 것으로 예상됩니다", "label": 0, "kind": "tv"}
+{"text": "광고 후에 계속됩니다", "label": 0, "kind": "tv"}
+{"text": "구독과 좋아요 알림 설정까지 부탁드립니다", "label": 0, "kind": "tv"}
+{"text": "경찰은 사고 원인을 조사하고 있다고 밝혔습니다", "label": 0, "kind": "tv"}
+{"text": "오늘 회의에서 그 얘기 나왔어?", "label": 0, "kind": "to_person"}
+{"text": "밥 먹었어? 나 지금 출발해", "label": 0, "kind": "phone"}
+{"text": "Mm-hmm, yeah, right.", "label": 0, "kind": "backchannel"}
+{"text": "응 응 그래", "label": 0, "kind": "backchannel"}
+{"text": "Did you see the game last night?", "label": 0, "kind": "to_person"}
+{"text": "Hi sweetheart, you're home early! How did the interview go?", "label": 0, "kind": "other_person"}
+{"text": "Welcome home honey, how was work?", "label": 0, "kind": "other_person"}
+{"text": "Hi sweetie, did you have fun at school?", "label": 0, "kind": "other_person"}
+{"text": "Hey Minji, can you grab the door for me?", "label": 0, "kind": "other_person"}
+{"text": "Mom, I'll call you back in five minutes.", "label": 0, "kind": "other_person"}
+{"text": "자기야 왔어? 오늘 어땠어?", "label": 0, "kind": "other_person"}
+{"text": "엄마 나 왔어", "label": 0, "kind": "other_person"}
+{"text": "오빠 이거 좀 봐 봐", "label": 0, "kind": "other_person"}
+{"text": "애기야 밥 먹자", "label": 0, "kind": "other_person"}
+{"text": "Okay, and what about Sunday?", "label": 1, "kind": "followup"}
+{"text": "Hmm, what time does it close?", "label": 1, "kind": "followup"}
+{"text": "그럼 일요일은?", "label": 1, "kind": "followup"}

@@ -1,0 +1,15 @@
+# Tooling only (lint + unit tests). Runtime dependencies live in server/requirements*.txt.
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["clients"]
+
+[tool.ruff.lint]
+select = ["E9", "F"]
+ignore = ["F541"]
+per-file-ignores = { "server/tests/*.py" = ["F401", "F821"] }
+
+[tool.pytest.ini_options]
+testpaths = ["hermes/tests", "server/tests"]
+python_files = ["test_*.py"]
+pythonpath = ["hermes", "server"]

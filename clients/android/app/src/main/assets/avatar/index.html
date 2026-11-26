@@ -1,0 +1,1907 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Laura Voxel Avatar</title>
+<style>
+:root{
+  --bg:#F3F4F9; --surface:#FFFFFF; --stage:#E7EAF3; --text:#161A2C; --muted:#596079;
+  --line:#D8DCE8; --chip:#ECEFF6; --chip-text:#22283F; --on:#20295A; --on-text:#FFFFFF;
+  --accent:#2F7BE0; --react:#7A55E8; --warn:#C2410C;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A0C14; --surface:#131624; --stage:#06070D; --text:#E7E9F3; --muted:#9298AF;
+    --line:#252A3D; --chip:#1B1F31; --chip-text:#D9DCEA; --on:#8FE9FF; --on-text:#06202A;
+    --accent:#7FD8FF; --react:#B9A2FF; --warn:#FF9A6B;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A0C14; --surface:#131624; --stage:#06070D; --text:#E7E9F3; --muted:#9298AF;
+  --line:#252A3D; --chip:#1B1F31; --chip-text:#D9DCEA; --on:#8FE9FF; --on-text:#06202A;
+  --accent:#7FD8FF; --react:#B9A2FF; --warn:#FF9A6B;
+  color-scheme: dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);overflow-x:hidden;
+  font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:760px;margin:0 auto;padding:0 16px 48px}
+.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 8px}
+.stage{position:relative;width:100%;height:min(54vh,calc(100vw - 32px),560px);min-height:240px;
+  border-radius:20px;overflow:hidden;background:var(--stage);border:1px solid var(--line)}
+canvas#c{display:block;width:100%;height:100%;touch-action:pan-y;cursor:crosshair}
+.hud{position:absolute;left:12px;right:12px;top:10px;display:flex;justify-content:space-between;gap:8px;
+  font-size:12px;color:var(--muted);pointer-events:none;font-variant-numeric:tabular-nums}
+.hud b{color:var(--text);font-weight:600}
+.meters{position:absolute;left:12px;right:12px;bottom:10px;display:flex;gap:10px;pointer-events:none}
+.meter{flex:1;height:5px;border-radius:3px;background:var(--line);overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--accent)}
+.meter.tts i{background:var(--react)}
+#desc{margin:8px 2px 0;color:var(--muted);font-size:13.5px;min-height:2.9em}
+h1{font-size:17px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+h1 small{font-weight:400;color:var(--muted);font-size:12px}
+section{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 12px 14px;margin-top:12px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+button,select{font:inherit;color:var(--chip-text);background:var(--chip);border:1px solid var(--line);
+  border-radius:999px;min-height:40px;padding:7px 14px;cursor:pointer;touch-action:manipulation}
+button[aria-pressed="true"]{background:var(--on);color:var(--on-text);border-color:var(--on)}
+button.react{border-color:color-mix(in srgb,var(--react) 45%,var(--line))}
+button.react.flash{background:var(--react);color:var(--on-text)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+select{border-radius:12px;padding-right:10px}
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.row label{color:var(--muted);font-size:13px}
+input[type=range]{flex:1;min-width:140px;accent-color:var(--accent);height:32px}
+.note{font-size:12.5px;color:var(--muted);margin:8px 2px 0}
+.warn{color:var(--warn)}
+#preview{width:128px;height:128px;border-radius:50%;background:#000;display:block;border:1px solid var(--line)}
+.exp{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}
+code{font-size:12px}
+
+html,body{background:var(--app-bg,#0F0D17)!important;height:100%;overflow:hidden}
+.wrap{max-width:none;padding:0;height:100%}
+.top{position:static;padding:0;background:transparent;height:100%}
+.stage{position:fixed;inset:0;height:auto;min-height:0;border:0;border-radius:0;background:transparent}
+canvas#c{touch-action:none;cursor:default}
+.hud,.meters,#desc,h1,section{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Laura · voxel avatar <small>prototype</small></h1>
+    <div class="stage" id="stage">
+      <canvas id="c" aria-label="Animated voxel character"></canvas>
+      <div class="hud"><span><b id="lbl">idle</b> <span id="lbl2"></span></span><span id="fps"></span></div>
+      <div class="meters"><div class="meter" title="mic level"><i id="mMic"></i></div><div class="meter tts" title="TTS amplitude"><i id="mTts"></i></div></div>
+    </div>
+    <p id="desc"></p>
+  </div>
+
+  <section>
+    <h2>State</h2>
+    <div class="chips" id="states"></div>
+    <div class="row"><button id="car" aria-pressed="false">Car mode (calm)</button><button id="demo" aria-pressed="false">Auto demo</button></div>
+  </section>
+
+  <section>
+    <h2>Reactions (one-shot, layered)</h2>
+    <div class="chips" id="reactions"></div>
+    <p class="note">Tap rapidly or during Speaking/Listening: each reaction crossfades in over the current pose and out again; a new one interrupts the old one mid-motion.</p>
+  </section>
+
+  <section>
+    <h2>Emotion hint (persistent mood)</h2>
+    <div class="chips" id="emotions"></div>
+  </section>
+
+  <section>
+    <h2>Input</h2>
+    <div class="row"><label for="lvl">Voice level</label><input id="lvl" type="range" min="0" max="1" step="0.01" value="0.35"><span id="lvlv" style="width:3ch;text-align:right">0.35</span></div>
+    <div class="row"><button id="mic" aria-pressed="false">Use microphone</button><span class="note" id="micnote" style="margin:0"></span></div>
+    <p class="note">Speaking uses a synthetic syllable envelope (purple meter). Tap the character to poke it; drag to steer its gaze.</p>
+  </section>
+
+  <section>
+    <h2>Display</h2>
+    <div class="chips" id="glow"></div>
+    <div class="chips" id="theme" style="margin-top:8px"></div>
+    <p class="note" id="perfnote"></p>
+  </section>
+
+  <section>
+    <h2>Export watch clips</h2>
+    <div class="row">
+      <select id="clip" aria-label="Clip"></select>
+      <select id="size" aria-label="Frame size"><option>192</option><option selected>256</option><option>320</option><option>450</option></select>
+      <select id="efps" aria-label="Frame rate"><option value="12">12 fps</option><option value="15" selected>15 fps</option><option value="24">24 fps</option></select>
+    </div>
+    <div class="row"><button id="exp1">Export sprite sheet</button><button id="expAll">Export all + manifest</button></div>
+    <div class="exp"><canvas id="preview" width="256" height="256"></canvas><div class="note" id="expnote" style="flex:1;min-width:160px">Renders canonical idle → reaction → canonical idle on black, deterministic, no gaze/blink/random. First and last frames equal idle frame 0, so clips chain seamlessly.</div></div>
+  </section>
+</div>
+
+
+<script type="importmap">
+{ "imports": {
+  "three": "./three/three.module.js",
+  "three/addons/": "./three/addons/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+const QS = new URLSearchParams(location.search);
+const BG_PARAM = (QS.get('bg') || '0F0D17').replace('#', '');
+const CLEAR = BG_PARAM.toLowerCase() === 'transparent';
+const APP_BG = CLEAR ? 'transparent' : '#' + BG_PARAM;
+// an overlay page must keep the embedder's colour scheme, or Chrome paints an opaque backdrop behind it
+document.documentElement.dataset.theme = CLEAR ? 'light' : 'dark';
+document.documentElement.style.setProperty('--app-bg', APP_BG);
+const ext = { mic: null, tts: null, base: 'idle', paused: false };
+const bridge = window.AvatarBridge || { ready() {}, failed() {} };
+const RM_MQ = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+let reducedSys = !!(RM_MQ && RM_MQ.matches), reducedApi = QS.get('rm') === '1' ? true : null;
+const reduced = () => reducedApi === null ? reducedSys : reducedApi;
+if (RM_MQ && RM_MQ.addEventListener) RM_MQ.addEventListener('change', e => { reducedSys = e.matches; });
+let hairlineOn = QS.get('hairline') !== '0';
+const MASK = QS.get('mask') === '1'; // [light] debug: flat segmentation IDs (skin red, eyes green, mouth cyan, blush yellow, hair blue)
+
+const $ = s => document.querySelector(s);
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const smooth = (a, b, x) => { const u = clamp((x - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
+const hash = n => { const s = Math.sin(n * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
+const damp = (k, dt) => 1 - Math.exp(-k * dt);
+const L = 4; // canonical idle loop length (s); all idle oscillators are harmonics of 1/L
+const GLOW = 0.67; // peak emissive relative to v1 (owner: one third dimmer)
+
+// ---------------------------------------------------------------- palette
+// Skin and hair never take the state colour; only the inner light (core, seams, rim, charm, motes, tie) does.
+const BASE_PAL = { skinLit: '#FFF1EC', skinShd: '#D7AEB2', skinUnder: '#F7DFD8', skinFD: '#F1D6CF', skinRim: '#8A5A6A', skinFill: '#FFE6DA', rampK: 0.26, cheek: '#F7DCCF', cheekK: 0.74, hairLit: '#47306E', hairShd: '#22163A', sheen: '#C9B8FF', hairRim: '#7E6BC9',
+  mouthGlow: '#FFC9A0', mouthSoft: '#9A5070',
+  tailLit: '#5A3470', tailShd: '#1E0E28', napeLit: '#4A3A5E', napeShd: '#1E1630', eyeLit: '#2E2350', eyeShd: '#120C22',
+  irisLit: '#5E4C94', irisShd: '#2C2250', mouthLit: '#2A1530', mouthShd: '#170A1D', blush: '#FF8FA8' };
+// [face] round 4: dark plum mouth interior, a lit #FFC9A0 bottom row, rose top corners, the surprised ring, a soft plum
+// idle smile, a #F4F0FF catchlight and flat 60 % value offline eyes
+Object.assign(BASE_PAL, { mouthLit: '#3F1A36', mouthShd: '#3F1A36', mouthSoft: '#5A2A48', mouthGlow: '#FFC9A0', mouthRose: '#B0466A',
+  mouthRing: '#9A5070', catchLit: '#F4F0FF', eyeOff: '#6A6080' });
+// [face] round 5: one mouth language (dark plum around the lit row, rose retired), #F2A3A8 blush, offline at 60 % value
+Object.assign(BASE_PAL, { blush: '#F2A3A8', mouthOff: '#7E6474' });
+// [face] round 6: lit row #F2A878 (>= 15 L* under the skin, so the D never splits), surprised ring #7A3A58, blush #F2A0A8,
+// a cream blush sparkle (shy, happy, celebrate only)
+Object.assign(BASE_PAL, { mouthGlow: '#F2A878', mouthRing: '#7A3A58', blush: '#F2A0A8', sparkle: '#FFF3DC' });
+const THEMES = {
+  dark: Object.assign({}, BASE_PAL, { name: 'dark', rimCol: '#2A2140', rimStr: 0, rimPow: 6.4, rimAdd: 0.22, skinBounce: 1, trans: 1, key: 1.12, hairRimK: 1,
+    haloA: 0.16, floorA: 0.05, floorAdd: true, outline: false }),
+  light: Object.assign({}, BASE_PAL, { name: 'light', hairShd: '#2A2140', skinShd: '#CFA2A8', skinFD: '#EAC9C3', rampK: 0.18, cheekK: 0.62, rimCol: '#4A3D6B', rimStr: 0.6, rimPow: 3.0, rimAdd: 0, key: 1, hairRimK: 0,
+    skinBounce: 0, trans: 0.45, haloA: 0, floorA: 0.16, floorAdd: false, outline: false }),
+  clear: Object.assign({}, BASE_PAL, { name: 'clear', rimCol: '#2A2140', rimStr: 0.6, rimPow: 6.4, rimAdd: 0.12, skinBounce: 1, trans: 1, key: 1.06, hairRimK: 0.5,
+    haloA: 0, floorA: 0, floorAdd: false, outline: true }) // [light] no floor blob under an overlay
+};
+const LIGHTS = { idle: ['#FFB070', 0.45], listening: ['#5CF2D6', 0.75], thinking: ['#8EC5FF', 0.7], speaking: ['#FFE2B0', 0.6],
+  interrupted: ['#5CF2D6', 0.75], ignored: ['#FFB070', 0.35], notowner: ['#9AA3BD', 0.35], error: ['#FF5F5F', 0.55],
+  offline: ['#FFB070', 0.05], sleeping: ['#FFB070', 0.2], car: ['#3FC8B4', 0.45] };
+const TINTS = { warm: '#FFB86B', gold: '#FFC94A', pink: '#FF9CC8', blue: '#7FB3FF', lavender: '#A08CFF', cyan: '#6CF0FF',
+  thinking: '#8EC5FF', listening: '#5CF2D6', speaking: '#FFE2B0', interrupted: '#5CF2D6', ignored: '#FFB070', notowner: '#9AA3BD',
+  error: '#FF5F5F', offline: '#FFB070', car: '#3FC8B4' };
+let TH = THEMES.dark;
+
+// ---------------------------------------------------------------- voxel model
+// One lattice, 11 across (x -5..5), 12 tall incl. the crown (y -5.5..6.5), 9 deep. Superellipsoid (exp 2.8 below the eyes,
+// 2.5 above so the crown rounds off 5-7-9-11 with no flat slab); the lower 30 % tapers to 75 % (chin). Hair is a material
+// swap on shell voxels; only the fringe tips and the two side locks are extra voxels.
+const K = { SHELL: 0, EYE: 2, MOUTH: 3, BLUSH: 4, HAND: 5, SAT: 6, CATCH: 7, RIB: 8, CHARM: 9, TIE: 10, WRAP: 11 };
+const MT = { SKIN: 0, HAIR: 1, EYE: 2, CATCH: 3, MOUTH: 4, BLUSH: 5, MOTE: 6, CHARM: 7, NAPE: 8, TAIL: 9, TIE: 10 };
+// shader classes (aY.x): which lighting rules a voxel gets
+const CL = { OTHER: 0, HAIR_FRONT: 1, HAIR_SIDE: 2, LOCK: 3, FACE: 4, SKIN: 5, TAIL: 6, PIXEL: 7 };
+const VS = 0.8, SA = 5.55, SB = 6.1, SBT = 6.8, SC = 4.6, SP = 2.8, SPT = 2.1, PIV = 4.6;
+const taper = y => 1 - 0.3 * Math.pow(clamp((-y / SB - 0.15) / 0.85, 0, 1), 1.6); // [light] the chin tapers over the lower 40 %
+const sby = y => y > 0 ? SBT : SB, spw = y => y > 0 ? SPT : SP;
+const inside = (x, y, z) => { const w = taper(y), p = spw(y);
+  return Math.pow(Math.abs(x / (SA * w)), p) + Math.pow(Math.abs(y / sby(y)), p) + Math.pow(Math.abs(z / (SC * w)), p) <= 1; };
+const formN = (x, y, z) => { const w = taper(y), b = sby(y), p = spw(y), g = v => Math.sign(v) * Math.pow(Math.abs(v), p - 1);
+  return new THREE.Vector3(g(x / (SA * w)) / (SA * w), g(y / b) / b, g(z / (SC * w)) / (SC * w)).normalize(); };
+// authored fringe: lowest hair row per front column (x = -5..5). Three clumps (x 0..1, -2..-1, -4..-3) step down from her
+// left temple (row 3.5) to her right brow (row 0.5); each ends in a pointed lip strand on its her-right end.
+const BANG = [99, 0.5, 0.5, 1.5, 1.5, 1.5, 2.5, 2.5, 1.5, 0.5, 99]; // [hair] side part at x = +2, the peek opens toward her left temple
+const TIPS = {}; // [hair] round 6: the lip strands (and the dark tab at the centre) are replaced by FRINGE_CLUMPS
+const bangY = x => BANG[clamp(x + 5, 0, 10)];
+// face opening half-width per row: an inverted U (widths change by at most 1 voxel per row)
+const HWY = y => y >= 3.5 ? 2 : y >= 1.5 ? 3 : y >= -1 ? 4 : /* [light] lower branch */ y >= -3.5 ? 4 : y >= -4.5 ? 3 : 2;
+const LOCK_END = { '-1': -4.5, '1': -3.5 }; // her right lock ends at the chin, her left one a row higher (the tail is behind it)
+function shellMat(x, y, z, n) {
+  if (n.y > 0.62) return MT.HAIR;
+  if (n.z < -0.25) return (y < -4.85 && Math.abs(x) <= 1) ? MT.NAPE : MT.HAIR; // [hair] the nape starts under the bob's hem // back: hair to ~85 %, a 3-wide nape
+  if (n.y < -0.4 && z <= -2) return MT.HAIR;                                   // [light] underside behind the jaw: hair shadow; the chin's underside stays skin
+  const inFace = Math.abs(x) <= HWY(y);
+  if (inFace && n.z > 0.15) return y >= bangY(x) ? MT.HAIR : MT.SKIN;
+  if (n.y < -0.5) return MT.SKIN;
+  return y >= LOCK_END[x < 0 ? '-1' : '1'] ? MT.HAIR : MT.SKIN;
+}
+const items = [];
+const frontZ = new Map(), shellAt = new Map();
+const body = (x, j, z) => inside(x, j + 0.5, z);
+const key3 = (x, j, z) => x + ',' + j + ',' + z;
+for (let x = -7; x <= 7; x++) for (let j = -7; j <= 7; j++) for (let z = -7; z <= 7; z++) {
+  if (!body(x, j, z)) continue;
+  if (body(x + 1, j, z) && body(x - 1, j, z) && body(x, j + 1, z) && body(x, j - 1, z) && body(x, j, z + 1) && body(x, j, z - 1)) continue;
+  const y = j + 0.5, n = formN(x, y, z);
+  let cnt = 0;
+  for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) if ((a || b || c) && body(x + a, j + b, z + c)) cnt++;
+  const m = shellMat(x, y, z, n);
+  const it = { k: K.SHELL, m, lx: x, ly: y, lz: z, j, hx: x * VS, hy: y * VS, hz: z * VS, n, ph: 0, ao: 1 - 0.32 * clamp((cnt - 15) / 9, 0, 1),
+    size: VS * 0.94, vis: 1, v: hash(x + j * 13 + z * 71) - 0.5, tr: 0, hlm: 0, hlp: 0, bounce: 0.3, edge: 0.25, cl: CL.OTHER };
+  items.push(it); shellAt.set(key3(x, j, z), it);
+  const key = x + ',' + j; if (!frontZ.has(key) || frontZ.get(key) < z) frontZ.set(key, z);
+}
+// [face] eye centre line at 51 % of the face height (highest forehead skin to the chin bottom), read from the built shell
+const FACE_TOP = Math.max(...items.filter(it => it.m === MT.SKIN && it.n.z > 0.3).map(it => (it.ly + 0.5) * VS));
+const FACE_CHIN = Math.min(...items.filter(it => it.m === MT.SKIN && it.lz > 0).map(it => (it.ly - 0.5) * VS));
+const EYE_CX = 1.85, EYE_CY = FACE_TOP - 0.51 * (FACE_TOP - FACE_CHIN), MOUTH_Y = -2.5; // world units
+const hlProfile = x => 1 - 0.5 * smooth(0.5, 4.2, Math.abs(x)); // hairline: 1.0 at the centre, 0.5 at the temples
+const isFrontHair = o => o && o.m === MT.HAIR && o.n.z > 0.3;
+for (const it of items) {
+  const up = shellAt.get(key3(it.lx, it.j + 1, it.lz)), down = shellAt.get(key3(it.lx, it.j - 1, it.lz));
+  const front = it.n.z > 0.3;
+  it.hlx = clamp(it.lx / 4.5, -1, 1);
+  if (it.m === MT.SKIN) {
+    // [light] every front-facing skin cube (fringe to chin, jaw corners included) is one welded class: one size, one seam rule
+    const faceFront = it.n.z > 0.2;
+    it.cl = faceFront ? CL.FACE : CL.SKIN;
+    it.size = VS * (faceFront ? 1.0 : 0.95);
+    // face: widen the cubes in x/y until the flat fronts meet (no seams, no corner pin-holes); a checker depth offset keeps
+    // the overlaps deterministic (no z-fighting)
+    if (faceFront) { it.sxy = 1.17; it.hzOff = ((x, j) => ((x + j) & 1) ? 0.006 : 0)(it.lx, it.j); it.ao = 1; } it.bounce = 0; it.edge = faceFront ? 0 : 0.06;
+    it.tr = it.ly; // [light] skin takes no state light; aX.x carries the lattice row for the shader's lower-face ramp
+    // the hairline: a continuous light line along every skin edge that meets the fringe (top, and the side steps of the V tips)
+    if (front && Math.abs(it.lx) <= 4) {
+      const side = d => { const fz = frontZ.get((it.lx + d) + ',' + it.j); return Math.abs(it.lx + d) <= 4 && isFrontHair(shellAt.get(key3(it.lx + d, it.j, fz))); };
+      if (isFrontHair(up)) { it.ao *= it.cl === CL.FACE ? 0.94 : 0.8; it.hlm |= 1; } // [light] a soft fringe shadow on the forehead (0.8 read as a pale box)
+      if (side(-1) && it.ly >= 0.5) it.hlm |= 2; // [light] side steps only along the fringe, never down the cheeks
+      if (side(1) && it.ly >= 0.5) it.hlm |= 4;
+      it.hlp = hlProfile(it.lx);
+    }
+  } else if (it.m === MT.HAIR) {
+    const side = it.n.z <= 0.3;
+    it.cl = side ? CL.HAIR_SIDE : CL.HAIR_FRONT;
+    it.bounce = side ? 0 : 0.4;
+    if (front && down && down.m === MT.SKIN && Math.abs(it.lx) <= 4) { it.hlm |= 8; it.hlp = hlProfile(it.lx); } // lit underside of the fringe
+  } else if (it.m === MT.NAPE) { it.bounce = 0; it.edge = 0.15; it.cl = CL.HAIR_SIDE; }
+}
+// [hair] crown dome: the hair cubes above the brow sit on the smooth superellipsoid instead of the lattice, tilted part-way
+// toward the form normal and overlapping 12 % in y, so the crown reads as one dome (no terraces, no lid, no hat brim)
+const TAIL_ROOT_G = [5.75, 2.5]; // [hair] the ponytail root in grid units (x, y), for the back strands to lean toward
+const CROWN = { wallStep: 0.95, hemTips: [-3, 0, 2], converge: 0.15, hem: -4.5, wallIn: 0.06, tilt: 1, dedupe: 0.62, size: 1.0, sx: 1.1, sy: 1.15, out: 0.15, clampOff: 0.6 };
+const surfD = (x, y, z, n) => { let a = -1.5, b = 1.5; // grid distance along n from (x, y, z) to the shell surface
+  for (let k = 0; k < 16; k++) { const m = (a + b) / 2; if (inside(x + n.x * m, y + n.y * m, z + n.z * m)) a = m; else b = m; } return (a + b) / 2; };
+// a tile frame: local z = n, local x = the horizontal tangent, local y = up the meridian
+const tileQ = n => { const e1 = new THREE.Vector3(0, 1, 0).cross(n); if (e1.lengthSq() < 1e-4) e1.set(1, 0, 0); e1.normalize();
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(e1, new THREE.Vector3().crossVectors(n, e1), n)); };
+// the bob's outer radius in x at height y and depth z (grid units): the dome above the brow, a straight wall below it
+const HDOME = { top: SBT - 1, q: 2.5 }; // [hair] round 6: the hair dome's apex 1 voxel lower; its sections are the wall's (SP), so dome and wall meet with no step
+const bobX = (y, z) => y >= 0 ? SA * Math.pow(Math.max(0, Math.pow(Math.max(0, 1 - Math.pow(y / HDOME.top, HDOME.q)), SP / HDOME.q) - Math.pow(Math.abs(z / SC), SP)), 1 / SP)
+  : SA * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(z / SC), SP)), 1 / SP) * (1 - 0.06 * smooth(0, -5, y));
+{
+  const ax3 = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], id = new THREE.Quaternion(), qq = new THREE.Quaternion();
+  const crown = items.filter(it => it.m === MT.HAIR && it.ly >= CROWN.hem && (it.ly < 0 || it.n.y > -0.4));
+  const top = Math.max(...crown.map(it => it.ly));
+  for (const it of crown) {
+    // one consistent frame per cube: local z = the form normal, local x = the horizontal tangent, local y = up the meridian
+    // below the brow line the bob hangs as a straight wall (the y = 0 section, narrowing a little toward the hem)
+    const wall = it.ly < 0, n = wall ? formN(it.lx, 0, it.lz) : it.n, e1 = new THREE.Vector3(0, 1, 0).cross(n); if (e1.lengthSq() < 1e-4) e1.set(1, 0, 0); e1.normalize();
+    const e2 = new THREE.Vector3().crossVectors(n, e1);
+    qq.setFromRotationMatrix(new THREE.Matrix4().makeBasis(e1, e2, n)); it.tq = id.clone().slerp(qq, CROWN.tilt);
+    // stretch each tile to the lattice spacing along the surface, so tiles on the slopes close up
+    const sx = clamp(CROWN.sx / Math.max(Math.abs(e1.x), Math.abs(e1.z)), 1, 1.5), sy = clamp(CROWN.sy / Math.max(Math.abs(e2.y), Math.abs(e2.z)), 1, 1.5);
+    ax3[0].set(sx, 0, 0).applyQuaternion(it.tq); ax3[1].set(0, sy, 0).applyQuaternion(it.tq); ax3[2].set(0, 0, 1).applyQuaternion(it.tq);
+    const h = 0.5 * CROWN.size * (Math.abs(n.dot(ax3[0])) + Math.abs(n.dot(ax3[1])) + Math.abs(n.dot(ax3[2])));
+    let off;
+    if (wall) {
+      const rk = (1 - CROWN.wallIn * smooth(0, -5, it.ly)) * Math.pow(Math.pow(Math.abs(it.lx / SA), SP) + Math.pow(Math.abs(it.lz / SC), SP), -1 / SP);
+      const px = it.lx * rk - n.x * (h - CROWN.out), pz = it.lz * rk - n.z * (h - CROWN.out);
+      off = Math.hypot(px - it.lx, pz - it.lz); it.hx = px * VS; it.hy = it.ly * VS; it.hz = pz * VS;
+    } else {
+      off = clamp(surfD(it.lx, it.ly, it.lz, n) - h + CROWN.out, -CROWN.clampOff, CROWN.clampOff);
+      it.hx = (it.lx + n.x * off) * VS; it.hy = (it.ly + n.y * off) * VS; it.hz = (it.lz + n.z * off) * VS;
+    }
+    it.size = VS * CROWN.size; it.hsx = sx; it.hsy = sy;
+    if (it.ly === top) it.ao *= 0.9;
+    it.off = off; it.nw = n; it.n = n.clone().applyQuaternion(it.tq.clone().invert()); // aN is rotated by the instance matrix
+  }
+  // two lattice cubes that land on the same patch of the dome: keep the one that moved least, drop the other
+  for (const a of crown) for (const b of crown) if (a !== b && a.ly >= 0 && b.ly >= 0 && !a.gone && !b.gone && Math.hypot(a.hx - b.hx, a.hy - b.hy, a.hz - b.hz) < CROWN.dedupe * VS)
+    (Math.abs(a.off) > Math.abs(b.off) ? a : b).gone = 1;
+}
+// [hair] round 5: locks, not tiles. Above the fringe the crown is one lock per gore from a whorl behind the top of the head,
+// swept away from the side part; each lock is one value ramp of long tiles laid along the strand, crossed by one highlight
+// arc ear to ear. Below the brow the locks hang on as vertical strands (1 x 1.6 cells, alternate columns 0.25 lower) to a
+// stepped hem; the back of the skull sits 1 voxel in. The front of the fringe keeps its lattice hairline as strand ends.
+const LOCKS = { lean: 0.42, w: 0.42, jit: 0.16, a0: 0.2, len: 1.8, arcH: 0.65, arcY: 4.75, colW: 2.7, ov: 1.1, ovS: 1.25, out: 0.2, sweep: 0.3, flat: 1.0, flatD: 2.2,
+  back: 1, fringeTop: 3.7, wallTop: 0.4, wallW: 1.02, cell: 1.6, drop: 0.25, edge: 0, wallK: 0.92, wallZ: 0.15, ramp: 0.015, side: [0.93, 1.03, 1], spread: 0.04, arcK: 1.0,
+  partDrop: { 1: 1.15, 2: 1.15, 3: 0.15 }, hem: -5.25, hemFront: -4.5, hemBack: [[40, -5.85], [75, -5.3]], hemTips: [[104, 0.65], [258, 0.65], [158, 0.6]], fringeLen: 1.7 };
+// [hair] round 6: the highlight band (shader uBand*): a ring of constant angle round a slightly back-leaning axis, through the
+// dome's front at y = bandY; 'w' its half-height (rad), 'per' the dash period (rad, ~3.5 dashes ear to ear), gaps at the part
+const HBAND = { bandY: 4.62, lean: 0.2, w: 0.085, per: 1.0, flat: 2.2, flatZ: 0.5 };
+{
+  const hSC = z => z < 0 ? SC - LOCKS.back : SC, sg = (v, p) => Math.sign(v) * Math.pow(Math.abs(v), p - 1);
+  const hq = HDOME.q, hB = HDOME.top, hH = p => Math.max(1e-6, Math.pow(Math.abs(p.x / SA), SP) + Math.pow(Math.abs(p.z / hSC(p.z)), SP));
+  const domeP = d => d.clone().multiplyScalar(Math.pow(Math.pow(hH(d), hq / SP) + Math.pow(Math.abs(d.y / hB), hq), -1 / hq));
+  const domeN = p => { const k = Math.pow(hH(p), hq / SP - 1); return new THREE.Vector3(k * sg(p.x / SA, SP) / SA, sg(p.y / hB, hq) / hB, k * sg(p.z / hSC(p.z), SP) / hSC(p.z)).normalize(); };
+  const ax = new THREE.Vector3(0, Math.cos(LOCKS.lean), -Math.sin(LOCKS.lean)), ez = new THREE.Vector3(0, Math.sin(LOCKS.lean), Math.cos(LOCKS.lean)), ex = new THREE.Vector3(1, 0, 0);
+  const dirOf = (th, al) => ax.clone().multiplyScalar(Math.cos(al)).addScaledVector(ex, Math.sin(al) * Math.sin(th)).addScaledVector(ez, Math.sin(al) * Math.cos(th));
+  const thOf = p => Math.atan2(p.dot(ex), p.dot(ez));
+  const frame = (n, t) => { const e2 = t.clone().addScaledVector(n, -t.dot(n)).normalize(), e1 = new THREE.Vector3().crossVectors(e2, n);
+    return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(e1, e2, n)); };
+  const thP = thOf(new THREE.Vector3(2, 3.6, 3.6)), thT = thOf(new THREE.Vector3(TAIL_ROOT_G[0], TAIL_ROOT_G[1], -1.8));
+  { HBAND.ax = new THREE.Vector3(0, Math.cos(HBAND.lean), -Math.sin(HBAND.lean)); HBAND.ex = new THREE.Vector3(1, 0, 0); HBAND.ez = new THREE.Vector3(0, Math.sin(HBAND.lean), Math.cos(HBAND.lean));
+    let d = new THREE.Vector3(0, 0.6, 1).normalize(); for (let i = 0; i < 40; i++) { const y = domeP(d).y; d.y += (HBAND.bandY - y) * 0.05; d.normalize(); }
+    const nP = domeN(domeP(new THREE.Vector3(2, 3.6, 3.6).normalize()));
+    HBAND.u = [Math.acos(domeN(domeP(d)).dot(HBAND.ax)), HBAND.w, HBAND.per, Math.atan2(nP.dot(HBAND.ex), nP.dot(HBAND.ez))]; }
+  const sweep = (tb, al) => LOCKS.sweep * Math.sin(tb - thP) * Math.pow(al / 1.6, 1.5);
+  // gore bounds: from the side part round her right side and the back to the ponytail, then on to the part again
+  const spanL = ((thT - thP) % TAU + TAU) % TAU, nL = Math.max(2, Math.round(spanL / LOCKS.w)), nR = Math.max(3, Math.round((TAU - spanL) / LOCKS.w));
+  const bounds = [];
+  for (let k = 0; k < nR; k++) bounds.push(thP - k * (TAU - spanL) / nR);
+  for (let k = 0; k < nL; k++) bounds.push(thT - TAU - k * spanL / nL);
+  bounds.push(thP - TAU); bounds.sort((a, b) => b - a);
+  for (let k = 1; k < bounds.length - 1; k++) if (Math.abs(bounds[k] - thP) > 1e-6 && Math.abs(bounds[k] - (thT - TAU)) > 1e-6)
+    bounds[k] += LOCKS.jit * (bounds[k - 1] - bounds[k + 1]) * 0.5 * (2 * hash(k * 3.7) - 1);
+  const fringeZone = p => Math.abs(p.x) < 4.6 && p.z > 1.2;
+  const yBot = p => fringeZone(p) ? LOCKS.fringeTop : 0.15;
+  const at = (th, al) => domeP(dirOf(th, al));
+  const slots = [], vk = [];
+  for (let g = 0; g < bounds.length - 1; g++) {
+    vk.push(1 + LOCKS.spread * (g & 1 ? 1 : -1) * (0.5 + 0.5 * hash(g * 5.3 + 1)));
+    const lo = al => bounds[g + 1] + sweep(bounds[g + 1], al), hi = al => bounds[g] + sweep(bounds[g], al), mid = al => (lo(al) + hi(al)) / 2;
+    // march down the gore centre: arc length table to the bottom
+    const tab = [[LOCKS.a0, 0]]; let al = LOCKS.a0, s = 0, prev = at(mid(al), al); const sY = [null, null, null], yA = [LOCKS.arcY + LOCKS.arcH, LOCKS.arcY, LOCKS.arcY - LOCKS.arcH];
+    while (al < 2.6) { al += 0.01; const p = at(mid(al), al); s += p.distanceTo(prev); prev = p; tab.push([al, s]);
+      yA.forEach((y, i) => { if (sY[i] === null && p.y < y) sY[i] = s; }); if (p.y < yBot(p)) break; }
+    const sArc = sY[1];
+    const sEnd = s, alAt = sv => { for (let i = 1; i < tab.length; i++) if (tab[i][1] >= sv) return tab[i - 1][0] + (tab[i][0] - tab[i - 1][0]) * (sv - tab[i - 1][1]) / Math.max(1e-6, tab[i][1] - tab[i - 1][1]); return tab[tab.length - 1][0]; };
+    const cuts = sY.slice();
+    const st = g & 1 ? 0.5 : 1; // odd locks' rows are staggered half a tile, so no row line runs across the crown
+    for (let c = sY[0] - st * LOCKS.len; c > 0.4; c -= LOCKS.len) cuts.unshift(c);
+    cuts.unshift(0);
+    for (let c = sY[2] + st * LOCKS.len; c < sEnd - 0.6; c += LOCKS.len) cuts.push(c);
+    cuts.push(sEnd + 0.2);
+    for (let r = 0; r + 1 < cuts.length; r++) {
+      const s0 = cuts[r], s1 = cuts[r + 1], sc = (s0 + s1) / 2, a = alAt(sc), pc = at(mid(a), a);
+      const rho = pc.clone().addScaledVector(ax, -pc.dot(ax)).length(), wd = (hi(a) - lo(a)) * rho, nc = Math.max(1, Math.round(wd / LOCKS.colW));
+      const arc = s0 >= sY[0] - 1e-6 && s1 <= sY[2] + 1e-6;
+      const ramp = 1 + LOCKS.ramp * (1 - 2 * clamp(Math.abs(sc - sArc) / Math.max(sArc, sEnd - sArc), 0, 1));
+      for (let j = 0; j < nc; j++) {
+        const th = al2 => lo(al2) + (j + 0.5) * (hi(al2) - lo(al2)) / nc;
+        const p = at(th(a), a), n = domeN(p), t = at(th(a - 0.02), a - 0.02).sub(at(th(a + 0.02), a + 0.02));
+        slots.push({ p, n, q: frame(n, t), hsx: Math.max(0.9, wd / nc * LOCKS.ov), hsy: (s1 - s0) * LOCKS.ovS, g, arc, k: vk[g] * ramp * (arc ? LOCKS.arcK : 1) * (nc > 1 ? LOCKS.side[j === 0 ? 0 : j === nc - 1 ? 2 : 1] : 1) });
+      }
+    }
+  }
+  // the whorl: one tile over the hole where the gores meet
+  { const p = domeP(ax.clone()), n = domeN(p); slots.push({ p, n, q: frame(n, new THREE.Vector3(0, 0, -1)), hsx: 1.6, hsy: 1.6, g: 0, k: 0.96 * vk[0] }); }
+  // part lines (hairShd + 5 %): the side part from the fringe up to the whorl, the nape part from the whorl down to the tie
+  const partAt = (th, a0, a1, nseg) => { for (let i = 0; i < nseg; i++) {
+    const a = a0 + (i + 0.5) * (a1 - a0) / nseg, p = at(th + sweep(th, a), a), n = domeN(p), t = at(th + sweep(th, a - 0.02), a - 0.02).sub(at(th + sweep(th, a + 0.02), a + 0.02));
+    slots.push({ p, n, q: frame(n, t), hsx: 0.34, hsy: p.distanceTo(at(th + sweep(th, a1), a1)) * 2 / (2 * nseg - 2 * i - 1) * 1.15, part: 1, lift: 0.05 }); } };
+  const alFor = (th, y) => { for (let a = LOCKS.a0; a < 2.6; a += 0.01) if (at(th + sweep(th, a), a).y < y) return a; return 2.6; };
+  partAt(thP, LOCKS.a0, alFor(thP, LOCKS.fringeTop + 0.2), 4);
+  partAt(thT - TAU, LOCKS.a0, alFor(thT - TAU, TAIL_ROOT_G[1] + 1.2), 3);
+
+  // walls: vertical strands from the brow to the stepped hem, front edge to front edge through the back
+  const wallR = (ph, y) => (1 - 0.06 * smooth(0, -5, y)) * Math.pow(Math.pow(Math.abs(Math.sin(ph) / SA), SP) + Math.pow(Math.abs(Math.cos(ph) / hSC(Math.cos(ph))), SP), -1 / SP);
+  const wallP = (ph, y) => { const r = wallR(ph, y); return new THREE.Vector3(Math.sin(ph) * r, y, Math.cos(ph) * r); };
+  const wallN = p => new THREE.Vector3(sg(p.x / SA, SP) / SA, 0, sg(p.z / hSC(p.z), SP) / hSC(p.z)).normalize();
+  const ph0 = 68 * Math.PI / 180, ph1 = TAU - ph0; let arcW = 0; for (let k = 0; k < 64; k++) arcW += wallR(ph0 + (k + 0.5) * (ph1 - ph0) / 64, -2) * (ph1 - ph0) / 64;
+  const nCol = Math.round(arcW / LOCKS.wallW) + 1, deg = ph => ph * 180 / Math.PI;
+  const hemAt = ph => { const d = Math.abs(deg(ph) - 180); let h = LOCKS.hem + (LOCKS.hemFront - LOCKS.hem) * (1 - smooth(85, 112, 180 - d)); for (const [w, y] of LOCKS.hemBack) if (d <= w) { h = y; break; }
+    for (const [c, dy] of LOCKS.hemTips) if (Math.abs(deg(ph) - c) < 0.5 * deg((ph1 - ph0) / (nCol - 1))) h -= dy; return h; };
+  for (let c = 0; c < nCol; c++) {
+    const ph = ph0 + c * (ph1 - ph0) / (nCol - 1), hb = hemAt(ph), top = LOCKS.wallTop - (c & 1 ? LOCKS.drop : 0), nr = Math.max(1, Math.round((top - hb) / LOCKS.cell)), cl = (top - hb) / nr;
+    const p0 = wallP(ph, 0); let g = 0, best = 1e9; for (const s2 of slots) if (s2.g !== undefined && s2.p.y < 1.5) { const d = s2.p.distanceTo(p0); if (d < best) { best = d; g = s2.g; } }
+    const kc = vk[g] * (1 - LOCKS.ramp) * (1 + 0.02 * (2 * hash(c * 2.3 + 7) - 1)); // [hair] round 6: each column continues its gore's lower end
+    for (let r = 0; r < nr; r++) {
+      const yc = top - (r + 0.5) * cl, p = wallP(ph, yc), n = wallN(p), kw = r === 0 ? 1 - (1 - LOCKS.wallK) / 3 : r === 1 ? 1 - 2 * (1 - LOCKS.wallK) / 3 : LOCKS.wallK; // hairLit -8 %, blended in over the top 2 rows
+      p.addScaledVector(n, (c & 1 ? 1 : -1) * LOCKS.wallZ); // alternate strands +-0.15 out and in
+      slots.push({ p, n, q: tileQ(n), hsx: LOCKS.wallW * 1.1, hsy: cl * LOCKS.ov, g, wall: 1, k: kc * kw * (r === nr - 1 ? 1 - LOCKS.ramp : 1), hem: r === nr - 1 });
+    }
+  }
+
+  // fringe band: the front hair above the hairline keeps its lattice bottom tile (the lit underside) and becomes 1-2 long
+  // strand tiles above it, up to the gores
+  const band = items.filter(it => it.m === MT.HAIR && it.tq && !it.gone && it.ly >= 0 && it.ly <= 3.5 && Math.abs(it.lx) <= 4 && it.nw.z > 0.3);
+  const cols = new Map(); for (const it of band) { if (!cols.has(it.lx)) cols.set(it.lx, []); cols.get(it.lx).push(it); }
+  const keep = new Set();
+  for (const [x, col] of cols) {
+    col.sort((a, b) => a.ly - b.ly || b.hz - a.hz);
+    const bot = col[0], dr = LOCKS.partDrop[x] || 0; keep.add(bot); bot.hsx = Math.max(bot.hsx || 1, 1.14);
+    if (dr) { // the clump at the part hangs 1 voxel lower over the forehead (the lattice hairline, and so the eye line, stay put)
+      const yb = bot.ly - dr, z0 = bot.hz / VS, n0 = formN(x, yb, z0), off = surfD(x, yb, z0, n0) - 0.5 + 0.35; bot.hsx = 1.2;
+      bot.hx = (x + n0.x * off) * VS; bot.hy = (yb + n0.y * off) * VS; bot.hz = (z0 + n0.z * off) * VS; bot.ly = yb;
+      for (const sk of items) if (sk.k === K.SHELL && sk.m === MT.SKIN && sk.lx === x && sk.ly >= yb && sk.lz > 0) sk.cut = 1; }
+    const y0 = bot.ly + 0.5, h = LOCKS.fringeTop + 0.5 - y0;
+    const nseg = h > 0.4 ? Math.max(1, Math.round(h / LOCKS.fringeLen)) : 0, spare = col.slice(1);
+    for (let i = 0; i < nseg && i < spare.length; i++) {
+      const it = spare[i], yc = y0 + (i + 0.5) * h / nseg, z0 = bot.hz / VS, n0 = formN(x, yc, z0), off = surfD(x, yc, z0, n0) - 0.5 + 0.15;
+      const p = new THREE.Vector3(x + n0.x * off, yc + n0.y * off, z0 + n0.z * off), n = domeN(p);
+      it.tq = frame(n, new THREE.Vector3(0, 1, 0)); it.hx = p.x * VS; it.hy = p.y * VS; it.hz = p.z * VS; it.hsx = 1.1; it.hsy = h / nseg * LOCKS.ov;
+      it.nw = n; it.n = new THREE.Vector3(0, 0, 1); it.ly = yc; it.hlm = 0; keep.add(it);
+    }
+  }
+  for (const it of keep) { const th = thOf(new THREE.Vector3(it.hx / VS, it.hy / VS, it.hz / VS)); let g = 0;
+    for (let k = 0; k + 1 < bounds.length; k++) if (th <= bounds[k] && th > bounds[k + 1]) g = k;
+    it.vk = vk[g] * (1 - LOCKS.ramp * smooth(LOCKS.fringeTop, 0.5, it.ly)); it.edge = LOCKS.edge; it.lockG = g; it.bounce = 0; it.gloss = 1;
+    it.n = it.nw.clone().add(new THREE.Vector3(0, LOCKS.flatD, 0.3 * LOCKS.flatD)).normalize().applyQuaternion(it.tq.clone().invert()); }
+  for (const it of band) if (!keep.has(it)) it.gone = 1;
+  // every other crown and wall cube becomes a lock slot; the rest leave the pool
+  const pool = items.filter(it => it.m === MT.HAIR && it.tq && !keep.has(it) && !it.lock).concat(items.filter(it => it.m === MT.HAIR && it.gone && !it.lock));
+  const uniq = [...new Set(pool)];
+  slots.forEach((s2, i) => {
+    let it = uniq[i]; if (!it) { it = { k: K.SHELL, m: MT.HAIR, ph: 0, v: 0, tr: 0, vis: 1 }; items.push(it); }
+    const c = s2.p.clone().addScaledVector(s2.n, -(0.5 - LOCKS.out - (s2.lift || 0)));
+    Object.assign(it, { lx: s2.p.x, ly: s2.p.y, lz: s2.p.z, hx: c.x * VS, hy: c.y * VS, hz: c.z * VS, tq: s2.q, hsx: s2.hsx, hsy: s2.hsy, hsz: s2.part ? 0.9 : 1,
+      size: VS, nw: s2.n, gone: 0, wallRow: s2.wall || 0, part: s2.part || 0, arc: s2.arc ? 1 : 0, gloss: s2.part ? 0 : 1, vk: s2.k || 1, lockG: s2.g, hem: s2.hem ? 1 : 0,
+      hlm: 0, hlp: 0, hlx: clamp(s2.p.x / 4.5, -1, 1), edge: LOCKS.edge, ao: 1, inner: 0, fringe: 0, off: 0, cl: CL.HAIR_FRONT, bounce: 0 });
+    // shading normal: the smooth form normal; the walls lean toward the viewer so they never take the full grazing rim
+    const ns = s2.wall ? s2.n.clone().add(new THREE.Vector3(0, LOCKS.flat, s2.n.z > -0.3 ? 0.35 : 0)).normalize()
+      : s2.n.clone().add(new THREE.Vector3(0, LOCKS.flatD, 0.3 * LOCKS.flatD)).normalize(); // flatter shading: the lock values carry the form, not tile facets
+    it.n = ns.clone().applyQuaternion(s2.q.clone().invert());
+  });
+  for (let i = slots.length; i < uniq.length; i++) uniq[i].cut = 1;
+  for (let i = items.length - 1; i >= 0; i--) if (items[i].cut || items[i].gone) items.splice(i, 1);
+}
+for (const it of items) if (it.m === MT.HAIR && (it.hlm & 8)) it.fringe = 1; // [hair] the fringe's lower edge, for fringeLift
+// [light] lower-face relief: below the eye line the welded face cubes sit on the smooth head surface instead of whole-voxel
+// terraces (the full-width 1-voxel step at the mouth row read as a muzzle); skinZ keeps faceZ (eyes, mouth, blush) on it.
+const skinZ = new Map(), RELIEF_BIAS = { '-4': 0.3, '-5': 0.65, '-6': 0.85 }; // mouth rows ~one plane; the chin curves back below the mouth
+// [light] round 6: a face with a jaw, not a slab. Below the mouth row the face's outer edge steps in by half voxels (half-widths
+// 4.5 / 4.125 / 3.375 / 2.25: a rounded U, the critics' 12/11/9/6), the chin is a half row shorter (the last row rides up 0.5 and
+// is a half-height step under the one above), and the outer two columns and the bottom rows curve back in z. Exposed step walls
+// are face tiles (porcelain, the face shading ignores the wall normal), so no edge can turn grey, rose or lilac.
+const JAW = { hw: { '-4': 3.6, '-5': 3.1, '-6': 2.1 }, colBack: { 4: 0.35, 3: 0.15 }, rowBack: { '-5': 0.2, '-6': 0.4 }, chinUp: 0.5, ov: 0.02, top: -2.5 };
+// below the eyes the tiles follow one plane: the cheek row's curve across x (the face surface at y = -2.5, the centre three
+// columns flat), the mouth row flush with the cheeks (no muzzle step), then the 0.2 / 0.4 setbacks: a gentle curve under the chin
+const jawZ = rx => { const w = taper(JAW.top), p = spw(JAW.top), f = x => SC * w * Math.pow(Math.max(0, 1 - Math.pow(Math.abs(x / (SA * w)), p) - Math.pow(Math.abs(JAW.top / sby(JAW.top)), p)), 1 / p);
+  return 4 + f(rx) - f(0); }; // front-face z (grid) - 0.5
+const jawClip = (it, hw, s) => { // clip a tile's outer edge to the half-width hw (grid units); false = nothing left
+  const x0 = Math.abs(it.hx / VS) - 0.5 * s, x1 = Math.abs(it.hx / VS) + 0.5 * s;
+  if (x1 <= hw) return true; if (hw - x0 < 0.25) return false;
+  it.jsx = (hw - x0) / (s / (it.sxy || 1)); it.hx = Math.sign(it.lx) * (x0 + hw) * 0.5 * VS; return true; };
+for (const it of items) {
+  if (it.m !== MT.SKIN || it.j > -4) continue; // rows below the eyes and cheeks
+  if (it.cl !== CL.FACE) { if (it.lz >= 0 && RELIEF_BIAS[it.j]) it.hz -= RELIEF_BIAS[it.j] * VS; // jaw-side cubes sit flush with the relief, never proud of it
+    if (it.lz >= 0 && JAW.hw[it.j] !== undefined) { // [light] the jaw sides and the chin's underside follow the U and the shorter chin
+      if (it.j === -6) it.hy += JAW.chinUp * VS;
+      const hw = JAW.hw[it.j] - 0.3, x1 = Math.abs(it.lx) + 0.5 * it.size / VS; if (x1 > hw) it.hx -= Math.sign(it.lx) * Math.min(x1 - hw, 0.6) * VS; } // tucked inside the U: no pale fin at 3/4
+    continue; }
+  const rx = Math.abs(it.lx) <= 1 ? 0 : it.lx; // the centre three columns share one plane: no join on the chin's centre line
+  const w = taper(it.ly), p = spw(it.ly), r = 1 - Math.pow(Math.abs(rx / (SA * w)), p) - Math.pow(Math.abs(it.ly / sby(it.ly)), p);
+  if (r <= 0) continue;
+  const back = (JAW.colBack[Math.abs(it.lx)] || 0) + (JAW.rowBack[it.j] || 0); // [light] round 6 z setback
+  const zc = clamp(jawZ(rx), it.lz - 0.45, it.lz + 1.7) - back; // [light] round 6 (was: the surface at each row + RELIEF_BIAS)
+  it.sz = 1.6; it.hz = (zc - 0.3) * VS; // 1.6 deep, front face kept on the surface: no pin-holes where tiles of different depth meet
+  it.sxy += JAW.ov; // [light] relief tiles overlap 0.02 more: no crack between neighbours of different depth
+  if (Math.abs(it.lx) >= HWY(it.ly)) { it.sz = 1.0; it.hz = zc * VS; it.hx -= Math.sign(it.lx) * (it.sxy - 1) * 0.5 * VS; // jaw corners: no proud side wall
+    it.jsy = it.sxy + 0.4; it.hy += 0.2 * VS; } // [light] reaching up into the row above, so its top is never a pale fin at 3/4
+  if (it.j === -6) it.hy += JAW.chinUp * VS; // [light] the chin's half row: up 0.5, a half-height step under the row above
+  if (JAW.hw[it.j] !== undefined && !jawClip(it, JAW.hw[it.j], it.sxy)) { it.cut = 1; continue; }
+  if (frontZ.get(it.lx + ',' + it.j) === it.lz) skinZ.set(it.lx + ',' + it.j, zc);
+}
+for (let i = items.length - 1; i >= 0; i--) if (items[i].cut && items[i].m === MT.SKIN && items[i].j <= -4) items.splice(i, 1); // [light]
+const CHIN_Y = (-6 + JAW.chinUp) * VS; // [light] the chin's last skin edge (world units), for checks and the mouth clearance
+const NSHELL = items.length;
+// fringe tips: one lip strand under each clump tip
+for (const xs of Object.keys(TIPS)) {
+  const x = +xs, y = bangY(x), j = Math.floor(y), fz = frontZ.get(x + ',' + j); if (fz === undefined) continue;
+  items.push({ k: K.SHELL, m: MT.HAIR, lip: 1, fringe: 1, lx: x, ly: y, lz: fz, hx: x * VS, hy: (y - TIPS[xs]) * VS, hz: (fz + 0.5) * VS,
+    n: formN(x, y, fz), ao: 1, size: VS * 0.82, vis: 1, v: 0, tr: 0, hlm: 8, hlp: hlProfile(x), hlx: x / 4.5, bounce: 0.6, edge: 0.2, cl: CL.HAIR_FRONT });
+}
+// [hair] round 6: 3 swept clumps falling away from the part (toward her right): each a 2-wide piece narrowing to a 1-wide
+// tip on its far side, tucked half under the next clump; tips hang 0.35 / 0.7 / 1.0 voxel below the fringe's lower edge, so
+// the hairline falls from the part to her right temple with no pocket of skin between clumps.
+// [near column, far column, tip drop, wide piece drop as a fraction of it]
+const FRINGE_CLUMPS = [[1, 0, 0.35, 0.5, 0.35], [-1, -2, 0.7, 0.6, 0.35], [-3, -4, 1.0, 0.35, 0.1]]; // + the tip's shift away from the part
+for (const [xa, xb, dr, wf, ts] of FRINGE_CLUMPS) {
+  const edge = Math.min(bangY(xa), bangY(xb), xa >= 1 ? 1.5 : 9) - 0.5, sw = Math.sign(xb - xa); // the fringe's lower edge (grid y; the part columns hang at 1.5)
+  // [x, width, top, bottom, columns under it, tip]: the wide piece starts at the centre base line (no skin above it), the tip hangs from it;
+  // the first clump also lays a flat piece over the part columns, level with it (one plateau, no notch at the part)
+  const pcs = [[(xa + xb) / 2, 2.0, 1.25, edge - wf * dr, xa === 1 ? [xa, xb, 2, 3, 4] : [xa, xb], 0], [xb + ts * sw, 0.8, edge - wf * dr + 0.2, edge - dr, [xb, xb + sw], 1]];
+  if (xa === 1) pcs.push([2.85, 3.3, 1.6, edge - wf * dr, [xa, xb, 2, 3, 4], -1]);
+  pcs.forEach(([x, w, top, bot, cs, tip]) => {
+    let zf = -9; for (const it of items) if (it.m === MT.HAIR && it.fringe && it.tq && cs.includes(it.lx)) zf = Math.max(zf, it.hz / VS + 0.24);
+    for (const c of cs) for (let j = Math.floor(bot); j <= Math.floor(top); j++) { const fz = frontZ.get(c + ',' + j); if (fz !== undefined) zf = Math.max(zf, fz + 0.82); } // in front of the forehead
+    const yc = (top + bot) / 2, n = formN(x, yc, zf).add(new THREE.Vector3(0, 0.15, 1.2)).normalize(), t = new THREE.Vector3(-sw * (tip > 0 ? 0.3 : xa === 1 ? 0 : 0.08), 1, 0), e2 = t.addScaledVector(n, -t.dot(n)).normalize();
+    const tq = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3().crossVectors(e2, n), e2, n));
+    items.push({ k: K.SHELL, m: MT.HAIR, fringe: 1, clump: 1, lx: x, ly: yc, lz: zf, hx: x * VS, hy: yc * VS, hz: (zf + (tip > 0 ? 0.02 : 0)) * VS, n: new THREE.Vector3(0, 0, 1), tq, hsx: w, hsy: top - bot, hsz: 0.6,
+      ao: 1, size: VS, vis: 1, v: 0, tr: 0, hlm: 8, hlp: hlProfile(x), hlx: x / 4.5, bounce: 0, edge: 0, cl: CL.HAIR_FRONT, gloss: 1, vk: 0.97 });
+  });
+}
+// [hair] side locks: vertical strands (1 x 1.6 cells, the front column 0.25 lower) on the bob's front edge, 0.5 further
+// forward and in than round 4 so the face never pokes past the bob; flaring +0.6 at eye level, 2 strands deep for the top
+// 2/3. Each ends in a small flick out toward the jaw, outside the face width; the lowest cells are hairShd (no lilac chinstrap).
+const SLOCK = { end: [-4.3, -3.8], top: 2.9, cell: 1.6, zs: [2.3, 3.3], zLow: 2.3, out: 0.4, x: -0.7, xR: -0.4, jawX: 4.9, drop: 0.25, flick: 0.35, edge: 0, k: 0.92 }; // [hair] round 6: 1.0 forward, 0.5 in (her right a further 0.4); beside the jaw below row -4
+for (const side of [-1, 1]) {
+  const end = SLOCK.end[side < 0 ? 0 : 1], nr = Math.max(2, Math.round((SLOCK.top - end) / SLOCK.cell)), cl = (SLOCK.top - end) / nr;
+  for (let r = 0; r < nr; r++) {
+    const low = r >= nr - Math.ceil(nr / 3), tip = r === nr - 1;
+    (low ? [SLOCK.zLow] : SLOCK.zs).forEach((z0, ci) => {
+      const y = SLOCK.top - (r + 0.5) * cl - (ci ? SLOCK.drop : 0) - (tip ? 0.15 : 0), f = (SLOCK.top - y) / (SLOCK.top - end), z = z0 - 1.0 * (1 - smooth(0.6, -0.9, y));
+      const flare = 0.6 * Math.exp(-Math.pow((y + 1) / 1.3, 2)) - (y <= -2.5 ? 0.2 : 0), curl = 0.2 * smooth(0.8, 1, f);
+      let x = bobX(y, z) - 0.2 + (SLOCK.x + 0.2 + (side < 0 ? SLOCK.xR : 0)) * smooth(0.6, -0.9, y) * (1 - smooth(-2.3, -3.3, y)) + flare - curl // in over the face edge from the eye line to the mouth, clear of the fringe above and the jaw below + (tip ? 0.2 : 0) + (low ? SLOCK.out : 0); if (y < -4) x = Math.max(x, SLOCK.jawX);
+      const n = formN(x, Math.min(y, 0), z), nm = new THREE.Vector3(side * n.x, n.y, n.z);
+      const tq = tileQ(nm); if (tip) tq.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -side * SLOCK.flick * Math.sign(nm.x || 1) * side));
+      items.push({ k: K.SHELL, m: MT.HAIR, lock: 1, lx: side * x, ly: y, lz: z, hx: side * x * VS, hy: y * VS, hz: z * VS, ao: 1,
+        n: new THREE.Vector3(nm.x, nm.y + 1.0, nm.z + 0.35).normalize().applyQuaternion(tq.clone().invert()), tq, hsx: tip ? 0.8 : 1, hsy: cl * 1.12 * (tip ? 0.8 : 1),
+        size: VS, vis: 1, v: 0, tr: 0, hlm: 0, hlp: 0, hlx: side, bounce: 0, edge: SLOCK.edge, cl: CL.HAIR_FRONT, gloss: tip ? 0 : 1, vk: SLOCK.k * (1 + 0.04 * (ci ? 1 : -1)) * (low ? 0.85 : 1) * (tip ? 0.85 : 1) }); // [light] integration: the flicked tip beside the jaw is plain plum, never a grey-lilac patch
+    });
+  }
+}
+const NBODY = items.length;
+// three voxels that fall out (and stay out) in the error state
+const dropIdx = items.slice(0, NSHELL).map((it, i) => [i, it.lx * 0.7 + it.ly + it.lz * 0.4]).filter(([i]) => items[i].lz > -1 && items[i].m === MT.HAIR).sort((a, b) => b[1] - a[1]).slice(0, 3).map(a => a[0]);
+dropIdx.forEach((i, r) => { items[i].drop = r + 1; });
+
+const faceZ = (x, y) => { const key = Math.round(x / VS) + ',' + Math.floor(y / VS); return (skinZ.get(key) ?? (frontZ.has(key) ? frontZ.get(key) : 3)) * VS + 0.5 * VS + 0.025; };
+// ---------------------------------------------------------------- face patterns (authored for the viewer-left eye)
+const EYES = {
+  open:   ['.###.', '#####', '#####', '#####', '#####', '.###.'],
+  calm:   ['.....', '.###.', '#####', '#####', '.###.', '.....'],
+  sleep:  ['.....', '.....', '#...#', '.###.', '.....', '.....'],
+  flat:   ['.....', '.....', '.....', '#####', '.....', '.....'],
+  narrow: ['.....', '.....', '#####', '#####', '.###.', '.....'],
+  wary:   ['.....', '.....', '.....', '.###.', '.###.', '.....'],
+  happy:  ['..###..', '.##.##.', '##...##'],
+  sad:    ['.....', '...##', '.####', '#####', '.###.', '.....'],
+  x:      ['.....', '#...#', '.#.#.', '..#..', '.#.#.', '#...#'],
+  chev:   ['##...', '.##..', '..##.', '.##..', '##...'],
+  off:    ['.....', '.....', '.....', '.###.', '#...#', '.....'], // [face] down-curved closed lid at 60 % value, a row under sleep's
+  star:   ['..#..', '..#..', '#####', '.###.', '.#.#.', '.....'],
+  shut:   ['.....', '.....', '.....', '.....', '#####', '.....'],
+  wide:   ['.###.', '#####', '#####', '#####', '#####', '#####', '.###.'] // [face] surprised: a 5x7 rounded pill
+};
+const EYE_DY = { happy: -1.0, wide: 1.0 }; // rows: the ^ sits on the eye line; [face] surprised opens 1 row up
+// [face] lit iris: [upper row (half lit), bottom row (irisLit)]; listening lights only the bottom row
+const IRIS = { open: [4, 5], calm: [3, 4], wide: [5, 6], sad: [3, 4], narrow: [4, 4] };
+// catchlights follow the light (top-left), not the gaze: [col, row, scale] in the pattern's grid; the main one is a
+// horizontal 2x1 with dark on all four sides, plus a small 1x1 low on the other side
+const CATCHES = { open: [[1, 1, 1], [2, 1, 1], [3, 4, 0.55]], calm: [[1, 2, 1], [2, 2, 1], [3, 3, 0.55]], narrow: [[1, 3, 1], [2, 3, 1]],
+  sad: [[2, 3, 1], [3, 3, 1]], wide: [[1, 1, 1], [2, 1, 1], [3, 5, 0.55]] };
+// [face] lash flick: one dark voxel stepping out and up from each eye's outer top corner ([col, row] in pattern cells)
+const LASH = { open: [-0.4, 0.45], calm: [-0.4, 1.45], narrow: [-0.45, 1.55], wide: [-0.4, 0.45], sad: [-0.45, 2.55], happy: [-0.45, 1.55], sleep: [-0.45, 1.55], shut: [-0.45, 3.55] };
+// [face] mouths, 7x4 cells. '#' = the mouth's own colour (dark plum when open, soft plum when closed),
+// l = self-lit #F2A878 row, g = the surprised ring, U = a dark corner lifted 1 row (2 rows tall), D = a dark cell 2 rows tall (down),
+// n = the 70 % notowner line
+const MOUTHS = {
+  none: ['.......', '.......', '.......', '.......'], soft: ['.#...#.', '..###..', '.......', '.......'],
+  smile: ['.#...#.', '..###..', '.......', '.......'], frown: ['..###..', '.#...#.', '.......', '.......'],
+  o: ['..ggg..', '.G###G.', '..#l#..', '...W...'], // the ring ..ggg../.g###g./.g#l#g./..ggg.. (G: 2 rows tall, W: 3 wide)
+  flat: ['..nnn..', '.......', '.......', '.......'],
+  think: ['.###...', '.......', '.......', '.......'],
+  wavy: ['.#.#.#.', '..#.#..', '.......', '.......'], laugh: ['.#####.', '.#lll#.', '..###..', '.......'],
+  small: ['...#...', '.......', '.......', '.......'], shut: ['..###..', '.......', '.......', '.......'],
+  off: ['..fff..', '.......', '.......', '.......'],
+  grin: ['U#####U', '.#lll#.', '..###..', '.......'], // round 6: celebrate/happy, 7 wide with lifted corners, 7/5/3
+  gap: ['.#####.', '.......', '.......', '.......']    // speaking word gaps under 200 ms: a dark closed 5x1
+};
+// [face] the 4-row peak (bottom y -3.82) only if >= 1.5 mouth rows of skin stay under it (CHIN_Y, else FACE_CHIN), else the 3-row D
+const PEAK4 = (() => { let c = FACE_CHIN; try { c = CHIN_Y; } catch (e) { /* LIGHT's round-6 chin, if present */ } return MOUTH_Y - 4 * 0.33 >= c + 1.5 * 0.33; })();
+if (PEAK4) MOUTHS.laugh = ['.#####.', '.D###D.', '..lll..', '..###..']; // = .#####./.#####./.#lll#./..###.. (D: dark, 2 rows tall)
+const MOUTH_CURVE = {};
+// speaking (round 6): amplitude maps to height, never width; the top row is always 5 wide, the lit row dark on 3 sides,
+// nothing below the last dark row. Whole patterns swap on one frame (no per-row toggles, no scale tween).
+const SPEAK = [MOUTHS.soft, ['.#####.', '..###..', '.......', '.......'], ['.#####.', '.#lll#.', '..###..', '.......'], MOUTHS.laugh];
+const LIT_MOUTH = { laugh: 1, speak: 1, o: 1, shut: 1, grin: 1, gap: 1 }; // open mouths: dark plum interior around the self-lit row
+const spk = { lvl: 0, at: -9, loud: -9, env: 0 };
+// speaking level with hysteresis and a 50 ms hold, so a pattern never flickers frame to frame; gaps < 200 ms stay a dark 5x1
+function speakPat(amp, t) {
+  const up = [0.12, 0.35, 0.62], dn = [0.08, 0.3, 0.56];
+  let tgt = 0; for (let i = 0; i < 3; i++) if (amp >= (i < spk.lvl ? dn[i] : up[i])) tgt = i + 1;
+  if (t < spk.at) { spk.at = -9; spk.loud = -9; } // clock reset (export)
+  if (tgt !== spk.lvl && t - spk.at >= 0.05) { spk.lvl = tgt; spk.at = t; }
+  if (spk.lvl > 0) { spk.loud = t; return SPEAK[spk.lvl]; }
+  return t - spk.loud < 0.2 || spk.env > 0.06 ? MOUTHS.gap : SPEAK[0]; // longer pauses inside a phrase stay closed, not smiling
+}
+const eyeName = (spec, side) => Array.isArray(spec) ? spec[side < 0 ? 0 : 1] : spec;
+function mouthPat(spec, amp, t) {
+  if (spec === 'speak') return t === undefined ? SPEAK[amp < 0.12 ? 0 : amp < 0.35 ? 1 : amp < 0.62 ? 2 : 3] : speakPat(amp, t);
+  return MOUTHS[spec] || MOUTHS.none;
+}
+// face pixels: only the pool cells some pattern uses (eyes up to 7x7, a 7x4 mouth), catchlights, lashes, blush
+const FS = 0.34, ER = 7, EC = 7, MS = 0.33, MR = 4, MC = 7;
+for (const side of [-1, 1]) for (let r = 0; r < ER; r++) for (let c = 0; c < EC; c++) {
+  const used = Object.values(EYES).some(p => r < p.length && c < p[0].length && p[r][side > 0 ? p[0].length - 1 - c : c] === '#');
+  if (used) items.push({ k: K.EYE, m: MT.EYE, side, r, c, size: FS, flat: 0.32, vis: 0, vv: 0, ph: 0, v: 0 });
+}
+for (const side of [-1, 1]) items.push({ k: K.EYE, m: MT.EYE, side, lash: 1, r: 99, c: 99, size: FS, flat: 0.32, vis: 0, vv: 0, ph: 0, v: 0 }); // [face]
+for (const side of [-1, 1]) for (let q = 0; q < 3; q++) items.push({ k: K.CATCH, m: MT.CATCH, side, q, size: FS, flat: 0.3, vis: 0, vv: 0, ph: 0, v: 0 });
+for (let r = 0; r < MR; r++) for (let c = 0; c < MC; c++)
+  if (Object.values(MOUTHS).concat(SPEAK).some(p => p[r][c] !== '.')) items.push({ k: K.MOUTH, m: MT.MOUTH, r, c, size: MS, flat: 0.32, vis: 0, vv: 0, ph: 0, v: 0 });
+// [face] blush (round 6): a 3x2 oval per cheek under the eye's outer half, half a row under the pill, its top row level with the
+// mouth's top row (the face is too short for a full row of gap: the eye pill ends below the mouth's top edge). The side columns
+// are the oval's 50 % corners (trimmed to 1.8 rows, centred). Inside LIGHT's round-6 jaw (|x| <= 2.7 below y -3.2). Plus one cream
+// sparkle pixel top-outer (shy, happy, celebrate only).
+{ const ROWH = 0.28, top = Math.max(EYE_CY - 3 * FS * 0.92 - 0.5 * FS * 0.92, MOUTH_Y - MS), cx = EYE_CX + 0.5;
+  for (const side of [-1, 1]) {
+    for (let j = 0; j < 3; j++) {
+      const x = side * (cx + (j - 1) * 0.33), y = top - ROWH, h = j === 1 ? 2 : 1.8;
+      items.push({ k: K.BLUSH, m: MT.BLUSH, side, j, hx: x, hy: y, hz: faceZ(x, y) - 0.034, size: 0.33, sx: 1.04, sy: h * ROWH / 0.33 * 1.02, flat: 0.12, vis: 1, ph: 0, v: 0, bk: j === 1 ? 1 : 0.5, bcx: side * cx });
+    }
+    const x = side * (cx + 0.33), y = top - 0.62 * ROWH;
+    items.push({ k: K.BLUSH, m: MT.BLUSH, side, j: 3, spark: 1, hx: x, hy: y, hz: faceZ(x, y) - 0.03, size: 0.16, sx: 1, sy: 1, flat: 0.12, vis: 0, ph: 0, v: 0, bk: 1, bcx: side * cx });
+  } }
+// eye wrap: a 2x3 sliver of eye on the cheek-corner side face, shown only in profile (|yaw| > 50 deg)
+for (const side of [-1, 1]) {
+  const fz4 = frontZ.get(side * 4 + ',' + Math.floor(EYE_CY / VS)) ?? 3;
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++)
+    items.push({ k: K.WRAP, m: MT.EYE, side, r, c, hx: side * (4.5 * VS + 0.03), hy: EYE_CY + (1 - r) * FS * 0.95, hz: (fz4 + 0.5) * VS - FS * (0.6 + c),
+      size: FS, thin: 0.3, vis: 0, ph: 0, v: 0 });
+}
+// mittens: 2x2x1 + a thumb at 0.7 scale, hidden until shy or celebrate uses them
+const MITT = [[-0.15, -0.15, 0, 0.3], [0.15, -0.15, 0, 0.3], [-0.15, 0.15, 0, 0.3], [0.15, 0.15, 0, 0.3], [-0.35, 0.0, 0.08, 0.21]];
+for (const side of [-1, 1]) MITT.forEach((o, q) => items.push({ k: K.HAND, m: MT.SKIN, side, q, o, size: o[3], vis: 0, ph: 0, v: 0 }));
+const NSAT = 6; // 0-3: formations; 4-5 only join the thinking crown and the sleep gems
+for (let i = 0; i < NSAT; i++) items.push({ k: K.SAT, m: MT.MOTE, idx: i, size: 0.36, vis: 0, ph: i * 1.7, v: 0 });
+// [hair] ponytail: one tapered strand that grows out of the bob high behind her left ear and hangs just outside it to below
+// the chin. Each chain link is 2 strand columns stretched along the chain (30 % overlap, so the links merge); it is widest a
+// third of the way down and ends in a 2-cube point. A thin 6-cube ring ties it; 3 bridge voxels sink the root into the bob.
+const TAIL = { root: [4.6, 2.0, -1.45], n: 14, seg: 0.54, wRoot: 1.2, wMax: 1.8, wEnd: 0.55, sBelly: 0.3, alt: 0.03, ov: 1.6, keep: 0.9, rate: 9 }; // [hair] round 5: slim taper, no cob ridges // keep/rate: one ~35 % overshoot on a drag, then settled
+const NR = TAIL.n;
+const TAIL_W = Array.from({ length: NR }, (_, i) => { const s = i / (NR - 1);
+  return s < TAIL.sBelly ? TAIL.wRoot + (TAIL.wMax - TAIL.wRoot) * smooth(0, TAIL.sBelly, s) : TAIL.wMax - (TAIL.wMax - TAIL.wEnd) * Math.pow((s - TAIL.sBelly) / (1 - TAIL.sBelly), 1.3); });
+for (let i = 0; i < NR; i++) { const n = i < NR - 2 ? 2 : 1;
+  for (let q = 0; q < n; q++) items.push({ k: K.RIB, m: MT.TAIL, idx: i, q, cn: n, vis: 1, ph: 0, v: 0, size: VS, n: new THREE.Vector3(n === 1 ? 0 : q ? 0.15 : -0.15, 0.12, 0.88).normalize() }); } // [hair] round 6: the two columns shade alike (one plum strand, no grey side)
+for (let q = 0; q < 12; q++) items.push({ k: K.TIE, m: MT.TIE, q, size: VS, vis: 1, ph: 0, v: 0 }); // [hair] a 2-deep ring
+for (let b = 1; b <= 3; b++) { // bridge voxels from the root into the shell
+  const f = b / 4, x = TAIL.root[0] * (1 - 0.32 * f), y = TAIL.root[1] + 0.15 * f, z = TAIL.root[2] * (1 - 0.3 * f);
+  items.push({ k: K.SHELL, m: MT.HAIR, bridge: 1, lx: x / VS, ly: y / VS, lz: z / VS, hx: x, hy: y, hz: z, n: formN(x / VS, y / VS, z / VS), ao: 0.85,
+    size: VS * (1.05 - 0.1 * b), vis: 1, v: 0, tr: 0, hlm: 0, hlp: 0, hlx: 1, bounce: 0, edge: 0.1, cl: CL.HAIR_SIDE });
+}
+// charm on the front edge of her right side lock (norigae nod): a closed 4-cube diamond knot around a bright core, 2-cube tassel
+const CHARM_AT = new THREE.Vector3(-5.0 * VS, 0.35, 2.5); // [hair] on the front of the lock (the lock is 0.5 further forward)
+const CHARM_KNOT = [[0, 0.21, 0, 0.3], [0.21, 0, 0, 0.3], [0, -0.21, 0, 0.3], [-0.21, 0, 0, 0.3], [0, 0, 0.1, 0.2]];
+CHARM_KNOT.forEach((o, q) => items.push({ k: K.CHARM, m: MT.CHARM, q, o, core: q === 4 ? 1 : 0, size: o[3], vis: 1, ph: 0, v: 0 }));
+for (let q = 0; q < 2; q++) items.push({ k: K.CHARM, m: MT.CHARM, q: 5 + q, tassel: q, size: 0.2 - q * 0.04, vis: 1, ph: 0, v: 0 });
+const N = items.length;
+
+// ---------------------------------------------------------------- geometry: chamfered cube (44 triangles)
+function chamferBox(b) {
+  const h = 0.5 - b, pos = [], nor = [];
+  const tri = (a, c, d, n) => {
+    const e1 = new THREE.Vector3().subVectors(c, a), e2 = new THREE.Vector3().subVectors(d, a);
+    if (e1.cross(e2).dot(n) < 0) { const t = c; c = d; d = t; }
+    for (const v of [a, c, d]) { pos.push(v.x, v.y, v.z); nor.push(n.x, n.y, n.z); }
+  };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const quad = (a, c, d, e, n) => { tri(a, c, d, n); tri(a, d, e, n); };
+  const ax = (i, a, b2, c) => { const v = [0, 0, 0]; v[i] = a; v[(i + 1) % 3] = b2; v[(i + 2) % 3] = c; return V(v[0], v[1], v[2]); };
+  for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {
+    const n = ax(i, s, 0, 0);
+    quad(ax(i, s * 0.5, -h, -h), ax(i, s * 0.5, h, -h), ax(i, s * 0.5, h, h), ax(i, s * 0.5, -h, h), n);
+    for (const t of [-1, 1]) {
+      const n2 = ax(i, s, t, 0).normalize();
+      quad(ax(i, s * 0.5, t * h, -h), ax(i, s * h, t * 0.5, -h), ax(i, s * h, t * 0.5, h), ax(i, s * 0.5, t * h, h), n2);
+    }
+  }
+  for (const sx of [-1, 1]) for (const sy of [-1, 1]) for (const sz of [-1, 1])
+    tri(V(sx * 0.5, sy * h, sz * h), V(sx * h, sy * 0.5, sz * h), V(sx * h, sy * h, sz * 0.5), V(sx, sy, sz).normalize());
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  return g;
+}
+
+// ---------------------------------------------------------------- three setup
+const canvas = $('#c'), stageEl = $('#stage');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: CLEAR, premultipliedAlpha: true, powerPreference: 'high-performance' }); }
+catch (e) { bridge.failed(String(e && e.message || e)); throw e; }
+renderer.info.autoReset = false;
+let dpr = Math.min(window.devicePixelRatio || 1, 2);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(18, 1, 1, 300);
+
+const uniforms = { uLight: { value: new THREE.Color() }, uLightI: { value: 0.4 }, uDesat: { value: 0 }, uScan: { value: 0 }, uScanY: { value: 0 },
+  uRimCol: { value: new THREE.Color() }, uRimStr: { value: 0 }, uRimPow: { value: 6.4 }, uRimAdd: { value: 0.22 }, uSheen: { value: new THREE.Color(BASE_PAL.sheen) },
+  uHairRim: { value: new THREE.Color(BASE_PAL.hairRim) }, uHairRimK: { value: 1 }, uUnder: { value: new THREE.Color(BASE_PAL.skinUnder) },
+  uHairK: { value: 0.7 }, uHairOn: { value: 1 }, uPartK: { value: 1 }, uTrans: { value: 1 }, uTrCap: { value: 0.4 }, uAccFloor: { value: 0.45 }, uKey: { value: 1 },
+  uWake: { value: 9 }, uWakeW: { value: 0.25 }, uMask: { value: MASK ? 1 : 0 },
+  // [light] skin: front/down shadow, warm rim (light/clear), warm inner fill; lower-face ramp rows (eye line, chin) and the mouth
+  // line in lattice rows; cheek apples (x, y, radius); the idle hair glint position (9 = off)
+  uSkinFD: { value: new THREE.Color() }, uSkinRim: { value: new THREE.Color() }, uSkinFill: { value: new THREE.Color() },
+  uRamp: { value: new THREE.Vector3(EYE_CY / VS - 0.6, -6.0, 0.5) }, uMouthL: { value: MOUTH_Y / VS }, uCheek: { value: new THREE.Vector4(1, 1, 1, 0) }, uSkinK: { value: 1 },
+  uApple: { value: new THREE.Vector3((EYE_CX + 0.3) / VS, (EYE_CY - 1.45) / VS, 1.1) }, uGlint: { value: 9 }, uGlintC: { value: new THREE.Color('#FFE9C8') },
+  uHead: { value: new THREE.Matrix4() }, uCamH: { value: new THREE.Vector3(0, 0, 99) } }; // [light] rig space -> head grid (bodyXf inverse, voxels), for the see-through rule
+// One shader for every voxel material. Per instance:
+//   aFx = ao, emissive, seam bounce, sheen;  aX = transmission, -, seam darkening, accent floor (-1: self-coloured emissive);
+//   aY  = class (CL), hairline mask (1 top, 2 -x side, 4 +x side, 8 underside, 16 crown parting), hairline profile, x for the wake sweep.
+const CENTROID = renderer.capabilities.isWebGL2 ? 'centroid ' : ''; // [light]
+const mat = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader: `
+    attribute vec3 aN; attribute vec3 aLit; attribute vec3 aShd; attribute vec4 aFx; attribute vec4 aX; attribute vec4 aY;
+    varying vec3 vN, vF, vLit, vShd, vP, vV, vNo, vSN; varying vec4 vFx, vX, vY; varying float vYw, vIn;
+    uniform mat3 uBodyInv; uniform vec4 uHairUp; varying vec3 vHN;
+    ${CENTROID}varying vec3 vH; uniform mat4 uHead; // centroid: an MSAA edge sample never extrapolates the head position
+    void main(){
+      vNo = normal;
+      vH = (uHead * instanceMatrix * vec4(position, 1.0)).xyz; // [light] head grid position (voxels)
+      vIn = dot(aN, aN) > 0.01 && normalize(mat3(instanceMatrix) * aN).z < -0.5 ? 1.0 : 0.0; // a back cube
+      // [light] a smooth form normal across the cubes: the centre's form normal bent by this vertex's offset (head radius ~4)
+      vSN = normalize(mat3(modelViewMatrix) * (normalize(mat3(instanceMatrix) * aN) * 4.0 + mat3(instanceMatrix) * position));
+      mat4 mv = modelViewMatrix * instanceMatrix;
+      vec4 p = mv * vec4(position, 1.0);
+      vF = normalize(mat3(mv) * normal);
+      vN = dot(aN, aN) > 0.01 ? normalize(mat3(modelViewMatrix) * (mat3(instanceMatrix) * aN)) : vF;
+      vLit = aLit; vShd = aShd; vFx = aFx; vX = aX; vY = aY; vP = position; vV = -p.xyz; vYw = instanceMatrix[3].y;
+      vHN = vec3(0.0); // [hair] glossy hair tiles (aFx.w): one smooth form normal across the tiles (no riser lips), flattened toward the body's up
+      if (aFx.w > 0.5 && aY.x > 0.5 && aY.x < 3.5) { vec3 nr = normalize(normalize(mat3(instanceMatrix) * vec3(0.0, 0.0, 1.0)) * 4.6 + mat3(instanceMatrix) * position);
+        vHN = uBodyInv * nr; vSN = normalize(mat3(modelViewMatrix) * (nr + uHairUp.xyz) + vec3(0.0, 0.0, uHairUp.w)); } // flattened up (body) and toward you (view)
+      gl_Position = projectionMatrix * p;
+    }`,
+  fragmentShader: `
+    uniform vec3 uLight, uRimCol, uSheen, uHairRim, uUnder;
+    uniform float uLightI, uDesat, uScan, uScanY, uRimStr, uRimPow, uRimAdd, uHairRimK, uHairK, uHairOn, uPartK, uTrans, uTrCap, uAccFloor, uKey, uWake, uWakeW, uMask;
+    uniform vec3 uSkinFD, uSkinRim, uSkinFill, uApple, uGlintC, uRamp; uniform vec4 uCheek; uniform float uMouthL, uGlint, uSkinK;
+    varying vec3 vN, vF, vLit, vShd, vP, vV, vNo, vSN; varying vec4 vFx, vX, vY; varying float vYw, vIn; uniform vec3 uCamH;
+    uniform vec4 uBand; uniform vec3 uBandAx, uBandEx, uBandEz; varying vec3 vHN;
+    ${CENTROID}varying vec3 vH;
+    float bit(float m, float b){ return mod(floor(m / b + 0.01), 2.0); }
+    void main(){
+      float clw = vY.x; // [light] see-through: a non-face fragment inside the head, behind the face, is only ever seen through a crack
+      vec3 vd = normalize(uCamH - vH); float ivz = 1.0 / max(vd.z, 0.05);
+      vec2 fq = vH.xy + vd.xy * (3.5 - vH.z) * ivz, fc = vH.xy + vd.xy * (2.2 - vH.z) * ivz; // where the view ray crosses the face, the chin
+      bool through = (vIn > 0.5 && dot(normalize(vV), normalize(vN)) < -0.5) || (!(clw > 3.5 && clw < 4.5) && clw < 6.5 && vd.z > 0.3
+        && ((vH.z < 2.9 && abs(fq.x) < (fq.y > -4.0 ? 3.4 : 2.8) && fq.y > -4.9 && fq.y < 1.2) || (vH.z < 1.6 && abs(fc.x) < 1.9 && fc.y > -5.3 && fc.y < -4.6))); // behind the face along the view ray
+      if (uMask > 0.5) { float id = through ? 1.0 : vX.y; // [light] debug segmentation (aX.y = mask id)
+        gl_FragColor = vec4(id < 0.5 ? vec3(0.0) : id < 1.5 ? vec3(1.0, 0.0, 0.0) : id < 2.5 ? vec3(0.0, 1.0, 0.0) : id < 3.5 ? vec3(0.0, 1.0, 1.0) : id < 4.5 ? vec3(1.0, 1.0, 0.0) : id < 5.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 1.0), 1.0); return; }
+      if (through) { gl_FragColor = vec4(uSkinFD * uSkinK, 1.0);
+        #include <colorspace_fragment>
+        return; } // a back cube, or any non-face fragment inside the head, seen through a crack in the face: porcelain
+      float cl = vY.x;
+      bool hair = (cl > 0.5 && cl < 3.5) || (cl > 5.5 && cl < 6.5), pixel = cl > 6.5, face = cl > 3.5 && cl < 4.5, skin = cl > 3.5 && cl < 5.5;
+      bool sideHair = cl > 1.5 && cl < 3.5;
+      vec3 N = normalize(vN), F = normalize(vF), V = normalize(vV);
+      if (face) N = normalize(mix(F, normalize(vSN), 0.92));
+      bool gloss = hair && vFx.w > 0.5 && dot(vHN, vHN) > 0.01; // [hair]
+      if (gloss) N = normalize(vSN);
+      if (cl > 5.5 && cl < 6.5) { if (dot(N, V) < 0.0) N = reflect(N, V); N = normalize(mix(N, V, 0.65)); } // [hair] the tail: lit from whichever side you see it, no grey rim
+      float yl = vX.x + vP.y * 1.17, xl = vY.w * 4.5 + vP.x * 1.17; // [light] skin: lattice row/column of this fragment
+      float aboveMouth = smoothstep(uMouthL + 0.3, uMouthL + 1.0, yl);
+      vec3 Ld = normalize(vec3(-0.45, 0.75, 0.55));
+      float lam = clamp(dot(N, Ld) * 0.85 + 0.2, 0.0, 1.0); lam = lam * lam * (3.0 - 2.0 * lam);
+      if (hair) lam = max(lam, cl > 2.5 && cl < 3.5 ? 0.45 : 0.32);
+      if (cl > 5.5 && cl < 6.5) lam = 0.5 + 0.1 * lam; // [hair] the tail: a soft plum from every side, never brighter than the bob
+      // skin: a warm front/down shadow, the warm rose side shadow only on the side planes
+      vec3 shd = skin ? mix(uSkinFD, vShd, smoothstep(0.3, 0.8, abs(N.x)) * smoothstep(uMouthL + 1.0, uMouthL + 2.5, yl)) : vShd; // [light] jaw and lower-cheek sides stay warm (no lilac edge)
+      vec3 col = mix(shd, vLit, lam);
+      if (face) { // [light] porcelain with form: a faint eye-line -> chin ramp (<= 2.5 L*) and a horizontal-only cheek ramp
+        float t = clamp((uRamp.x - yl) / (uRamp.x - uRamp.y), 0.0, 1.0);
+        vec3 sn = normalize(vSN);
+        float sd = smoothstep(0.04, 0.72, abs(sn.x)) * (sn.x > 0.0 ? 1.0 : 0.8); // x of the form normal only, never y: it cannot make a band
+        col = mix(mix(vLit, uSkinFD, clamp(uRamp.z * t, 0.0, 1.0)), uCheek.rgb, uCheek.a * sd);
+        float ap = exp(-pow(length(vec2(abs(xl) - uApple.x, yl - uApple.y)) / uApple.z, 2.0)) * aboveMouth;
+        col *= 1.0 + ap * vec3(0.03, 0.012, 0.0); // cheek apples: +3 % warm lift
+        float wall = 1.0 - smoothstep(0.25, 0.75, vNo.z); // [light] round 6: the jaw's step and underside walls (tile sides) read as depth,
+        float jw = vNo.y < -0.5 ? step(yl, uMouthL - 1.3) : step(2.6, abs(xl)) * step(0.0, vNo.x * xl); // outer jaw walls facing out, chin undersides
+        col = mix(col, vNo.y < -0.5 ? uUnder : uSkinFD, wall * 0.3 * jw * step(yl, uMouthL + 0.5)); // warm porcelain (L* >= 85), below the mouth line only
+      }
+      float facet = 0.08 * min(1.0, vX.z * 4.0) * (clamp(dot(F, Ld), -0.5, 1.0) - clamp(dot(N, Ld), -0.5, 1.0));
+      if (hair) facet *= 0.4 + 0.6 * lam;
+      col *= 1.0 + facet;
+      vec3 a = abs(vP) * 2.0;
+      float mx = max(a.x, max(a.y, a.z)), mn = min(a.x, min(a.y, a.z)), md = a.x + a.y + a.z - mx - mn;
+      float e = smoothstep(0.66, 0.99, md);
+      col *= vFx.x * (1.0 - vX.z * e);
+      if (skin) col *= 1.0 + (1.0 - vFx.x) * vec3(0.0, -0.04, -0.07); // [light] occluded porcelain stays warm
+      if (skin && !face) col = mix(col, uUnder, 0.35 * max(-N.y, 0.0));
+      col *= skin ? min(uKey, 1.0) : uKey;
+      col = mix(col, vec3(dot(col, vec3(0.299, 0.587, 0.114))), uDesat);
+      if (skin) col *= uSkinK; // [light] offline: porcelain value -25 % (L* <= 75), never the brightest face on the sheet
+      // [hair] round 6: one glossy band ear to ear, gated on vFx.w only, broken into tapered dashes; specular (key light), never emissive
+      if (hair && vFx.w > 0.0) {
+        if (gloss) col *= 1.0 - 0.09 * smoothstep(0.3, 0.5, abs(vP.x)); // each tile a strand: soft dark sides, no light outline
+        float bd = vFx.w * 0.5; // the tail's streak: value only (a cream glaze turned the plum grey)
+        if (gloss) { vec3 hn = normalize(vHN); float al = acos(clamp(dot(hn, uBandAx), -1.0, 1.0)), th = atan(dot(hn, uBandEx), dot(hn, uBandEz));
+          float dm = smoothstep(0.12, 0.7, sin(3.14159 * fract((th - uBand.w) / uBand.z)));
+          bd = dm * exp(-pow((al - uBand.x) / (uBand.y * (0.4 + 0.6 * dm)), 2.0)) * smoothstep(1.55, 1.1, abs(th)); }
+        bd *= min(uKey, 1.0) * (0.55 + 0.45 * lam);
+        col = col * (1.0 + 0.25 * bd) + (gloss ? uSheen * 0.18 * bd : vec3(0.0)) + uGlintC * 0.15 * exp(-pow((vY.w - uGlint) * 2.5, 2.0)) * bd; // [light] + the idle glint
+      }
+      vec3 Lc = uLight * uLightI;
+      float bnc = vFx.z * (0.15 * e + 0.035);
+      if (hair) bnc *= smoothstep(0.15, 0.6, lam);
+      if (sideHair) col += vec3(0.07, 0.06, 0.08) * e * 0.8;          // side/back seams: neutral, never the state tint
+      else if (face) col += vec3(0.03, 0.022, 0.014) * e;             // face seams: fixed and warm, independent of the light
+      else col += Lc * bnc;
+      if (skin) col += uSkinFill * 0.03; // [light] fixed warm inner fill; skin never takes the state light
+      else col += uLight * uLightI * vX.x * uTrans * 0.22;
+      float m = vY.y;
+      if (m > 0.5) {
+        float hl = 0.0;
+        float h0 = skin ? 0.37 : 0.22; // [light] on skin the bleed stays within 0.15 voxel of the hair edge
+        if (bit(m, 1.0) > 0.5) hl = max(hl, smoothstep(h0, 0.5, vP.y));
+        if (bit(m, 2.0) > 0.5) hl = max(hl, smoothstep(h0, 0.5, -vP.x));
+        if (bit(m, 4.0) > 0.5) hl = max(hl, smoothstep(h0, 0.5, vP.x));
+        if (bit(m, 8.0) > 0.5) hl = max(hl, smoothstep(-0.2, -0.5, vP.y));
+        float w = smoothstep(uWake + uWakeW, uWake - uWakeW, vY.w) * smoothstep(0.2, 0.7, vNo.z);
+        if (bit(m, 16.0) > 0.5) col = mix(col, uLight * uPartK, smoothstep(0.3, 0.5, abs(vP.x)) * vY.z);
+        else col = mix(col, uLight * uHairK, hl * vY.z * uHairOn * w);
+      }
+      col += uLight * uScan * vFx.z * (0.25 + e) * 0.35 * exp(-pow((vYw - uScanY) * 1.4, 2.0));
+      vec3 em = vX.w < -0.5 ? vLit : vLit * uLight * (uAccFloor + 0.95 * max(uLightI, vX.w));
+      col = mix(col, em, vFx.y);
+      // glazed ceramic: a small Blinn-Phong highlight on every voxel
+      vec3 Ns = face || gloss ? N : normalize(mix(F, N, 0.5)); // [hair] glossy hair: no light outline on the bevels
+      if (skin) col += vec3(0.10, 0.08, 0.06) * pow(max(dot(Ns, normalize(Ld + V)), 0.0), 24.0) * aboveMouth; // [light] soft glaze, never on the chin
+      else col += vec3(0.18) * pow(max(dot(Ns, normalize(Ld + V)), 0.0), 48.0) * (1.0 - vFx.y) * (hair ? 0.45 : 1.0);
+      float f0 = 1.0 - clamp(dot(N, V), 0.0, 1.0);
+      float fr = pow(f0, 4.0) * (1.0 - vFx.y);
+      if (hair) col += uHairRim * fr * 0.35 * uHairRimK;
+      else if (skin) col += uSkinFill * fr * uRimAdd * 0.5;
+      else if (!pixel) col += uLight * fr * uRimAdd * (0.3 + uLightI);
+      col = mix(col, skin ? uSkinRim : uRimCol, pow(f0, skin ? max(uRimPow, 6.0) : uRimPow) * uRimStr * (skin ? 0.6 : 1.0) * (1.0 - vFx.y)); // [light] warm rim on skin
+      gl_FragColor = vec4(col, 1.0);
+      #include <colorspace_fragment>
+    }`
+});
+const voxGeo = chamferBox(0.07);
+const A = {
+  n: new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage),
+  lit: new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage),
+  shd: new THREE.InstancedBufferAttribute(new Float32Array(N * 3), 3).setUsage(THREE.DynamicDrawUsage),
+  fx: new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4).setUsage(THREE.DynamicDrawUsage),
+  x: new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4).setUsage(THREE.DynamicDrawUsage),
+  y: new THREE.InstancedBufferAttribute(new Float32Array(N * 4), 4).setUsage(THREE.DynamicDrawUsage)
+};
+voxGeo.setAttribute('aN', A.n); voxGeo.setAttribute('aLit', A.lit); voxGeo.setAttribute('aShd', A.shd); voxGeo.setAttribute('aFx', A.fx); voxGeo.setAttribute('aX', A.x); voxGeo.setAttribute('aY', A.y);
+// per-item source attributes; each frame only the visible instances are packed into the GPU buffers (vox.count)
+const B = { n: new Float32Array(N * 3), lit: new Float32Array(N * 3), shd: new Float32Array(N * 3), fx: new Float32Array(N * 4), x: new Float32Array(N * 4), y: new Float32Array(N * 4) };
+items.forEach((it, i) => { if (it.n) B.n.set([it.n.x, it.n.y, it.n.z], i * 3); });
+const vox = new THREE.InstancedMesh(voxGeo, mat, N);
+vox.instanceMatrix.setUsage(THREE.DynamicDrawUsage); vox.frustumCulled = false;
+const rig = new THREE.Group(); scene.add(rig); rig.add(vox);
+
+// overlay outline: an inverted hull of the same instances, expanded 1.5 px in screen space and pushed back in depth so
+// it only shows outside the silhouette (transparent mode only)
+const outlineMat = new THREE.ShaderMaterial({
+  uniforms: { uColor: { value: new THREE.Color('#FAF2EC') }, uPx: { value: 1.5 }, uRes: { value: new THREE.Vector2(512, 512) } }, side: THREE.BackSide,
+  vertexShader: `uniform float uPx; uniform vec2 uRes;
+    void main(){
+      mat4 mv = modelViewMatrix * instanceMatrix;
+      vec4 p = mv * vec4(position, 1.0);
+      vec4 c = projectionMatrix * p;
+      vec2 sd = (projectionMatrix * vec4(normalize(mat3(mv) * position), 0.0)).xy;
+      float l = length(sd); sd = l > 1e-5 ? sd / l : vec2(0.0);
+      c.xy += sd * uPx * 2.0 / uRes * c.w;
+      vec4 cz = projectionMatrix * vec4(p.xy, p.z - 1.6, 1.0);
+      gl_Position = vec4(c.xy, cz.z / cz.w * c.w, c.w);
+    }`,
+  fragmentShader: `uniform vec3 uColor; void main(){ gl_FragColor = vec4(uColor, 1.0);
+    #include <colorspace_fragment>
+  }`
+});
+const outline = new THREE.InstancedMesh(voxGeo, outlineMat, N);
+outline.instanceMatrix = vox.instanceMatrix; outline.frustumCulled = false; outline.visible = false; outline.renderOrder = 1;
+rig.add(outline);
+
+// the lantern: an emissive inner body, seen only through the front seams (the fringe). Behind the face it is a plain skin
+// fill, so the pin-holes where four chamfered face cubes meet never leak light; it adds nothing below the chin or at the back.
+const innerMat = new THREE.ShaderMaterial({
+  uniforms: { uLight: uniforms.uLight, uLightI: uniforms.uLightI, uFill: { value: new THREE.Color('#EFD3CC') }, uBase: { value: new THREE.Color('#120C1C') } },
+  vertexShader: `varying vec3 vN, vO;
+    void main(){ vec3 p = position; float t = clamp((-p.y - 0.15) / 0.85, 0.0, 1.0); p.xz *= max(1.0 - 0.3 * pow(t, 1.6) - 0.6 * t, 0.2); // [light] round 6: narrower under the cheeks, inside the new jaw U
+      vO = normal; vN = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
+  fragmentShader: `uniform vec3 uLight, uFill, uBase; uniform float uLightI; varying vec3 vN, vO;
+    void main(){ float c = pow(clamp(vN.z, 0.0, 1.0), 1.4);
+      float front = smoothstep(0.2, 0.6, vO.z), faceM = smoothstep(-0.3, 0.2, vO.z) * (1.0 - smoothstep(0.15, 0.4, vO.y)); // [light] warm skin fill behind the whole lower face
+      float band = smoothstep(0.0, 0.15, vO.y) * (1.0 - smoothstep(0.36, 0.5, vO.y)); // only behind the fringe
+      vec3 L = uBase + uLight * uLightI * (0.08 + 0.75 * c * c) * front * band;
+      gl_FragColor = vec4(mix(L, uFill, faceM), 1.0);
+      #include <colorspace_fragment>
+    }`
+});
+const inner = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), innerMat);
+const INNER_R = [(SA - 1.3) * VS, ((SB + SBT) / 2 - 1.3) * VS, (SC - 1.3) * VS], INNER_Y = (SBT - SB) / 2 * VS;
+rig.add(inner);
+
+const quadShader = (frag) => new THREE.ShaderMaterial({
+  uniforms: { uColor: { value: new THREE.Color() }, uAlpha: { value: 0.3 } }, transparent: true, depthWrite: false, premultipliedAlpha: true,
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }',
+  fragmentShader: 'uniform vec3 uColor; uniform float uAlpha; varying vec2 vUv; void main(){ ' + frag + ' gl_FragColor = vec4(uColor * a * uAlpha, a * uAlpha);\n#include <colorspace_fragment>\n}'
+});
+const halo = new THREE.Mesh(new THREE.PlaneGeometry(18, 18), quadShader('float d = length(vUv - 0.5) * 2.0; float a = pow(max(1.0 - d, 0.0), 2.6);'));
+halo.position.z = -7; halo.renderOrder = -2; scene.add(halo);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(7.5, 1.2), quadShader('float d = length(vUv - 0.5) * 2.0; float a = pow(max(1.0 - d, 0.0), 1.4);'));
+floor.position.set(0, -6.1, 0); floor.renderOrder = -1; scene.add(floor);
+
+let glowMode = 'cheap'; // 'bloom' is kept as an API value; it only enlarges the halo (no post-processing)
+
+const rot = { yaw: 0, pitch: 0, vy: 0, touch: -1e9, held: false };
+const PITCH_MAX = 35 * Math.PI / 180;
+const ACTIVE = { listening: 1, speaking: 1, thinking: 1, interrupted: 1 };
+function stepRotation(dt) {
+  const act = !!ACTIVE[state], since = clock - rot.touch;
+  if (!rot.held) { rot.yaw += rot.vy * dt; rot.vy *= Math.exp(-(act ? 5 : 2.6) * dt); if (Math.abs(rot.vy) < 0.02) rot.vy = 0; }
+  // after release she turns back to face you: within ~1.5 s while busy, ~4 s when idle
+  if (!rot.held && since > (act ? 0.25 : 0.5)) {
+    const front = Math.round(rot.yaw / TAU) * TAU; const k = damp(act ? 3.6 : 2.6, dt);
+    rot.yaw += (front - rot.yaw) * k; rot.pitch += (0 - rot.pitch) * k;
+  }
+  rig.rotation.set(rot.pitch, rot.yaw, 0, 'YXZ');
+}
+
+// union bounds of every state, pose and reaction (rig space, measured with debug.bounds())
+const FB = { x0: -6.4, x1: 6.9, y0: -6.7, y1: 7.1, z1: 3.6 };
+let small = false, cropView = null;
+function frame(w, h) {
+  camera.aspect = w / h;
+  if (cropView) { const f = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), d = cropView.hh / f + FB.z1;
+    camera.position.set(cropView.cx, cropView.cy, d); camera.lookAt(cropView.cx, cropView.cy, 0); camera.near = Math.max(1, d - 20); camera.far = d + 30; camera.updateProjectionMatrix();
+    small = Math.min(w, h) <= 180; outlineMat.uniforms.uRes.value.set(w * dpr, h * dpr); outlineMat.uniforms.uPx.value = 1.5 * dpr; return; }
+  const f = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), M = 1.1;
+  const cy = (FB.y0 + FB.y1) / 2, hh = (FB.y1 - FB.y0) / 2 * M, hw = Math.max(-FB.x0, FB.x1) * M;
+  const d = FB.z1 + Math.max(hh / f, hw / (f * camera.aspect));
+  camera.position.set(0, cy, d); camera.lookAt(0, cy, 0); camera.near = Math.max(1, d - 20); camera.far = d + 30; camera.updateProjectionMatrix();
+  halo.position.y = 0.3;
+  small = Math.min(w, h) <= 180;
+  outlineMat.uniforms.uRes.value.set(w * dpr, h * dpr); outlineMat.uniforms.uPx.value = 1.5 * dpr;
+}
+function resize() {
+  const r = stageEl.getBoundingClientRect(); const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+  renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+  frame(w, h);
+}
+new ResizeObserver(() => { if (!exporting) resize(); }).observe(stageEl);
+
+function themeName() {
+  const q = QS.get('theme'); if (q && THEMES[q]) return q;
+  if (CLEAR) return 'clear';
+  const c = new THREE.Color(APP_BG); return (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) > 0.45 ? 'light' : 'dark';
+}
+const tmpC = new THREE.Color(), tmpC2 = new THREE.Color();
+const PART_LIT = new THREE.Color('#2A1E48'), PART_SHD = new THREE.Color('#1A1030'); // [hair]
+uniforms.uSheen.value.set('#FFE6CC'); // [hair] round 6: the band's cream sheen (x 0.18 in the shader)
+Object.assign(uniforms, { uBodyInv: { value: new THREE.Matrix3() }, uHairUp: { value: new THREE.Vector4() }, uBand: { value: new THREE.Vector4(...HBAND.u) },
+  uBandAx: { value: HBAND.ax }, uBandEx: { value: HBAND.ex }, uBandEz: { value: HBAND.ez } });
+const hairInvQ = new THREE.Quaternion(), hairM4 = new THREE.Matrix4();
+const COL = {};
+function applyTheme(name, clearHex) {
+  TH = THEMES[name] || THEMES.dark;
+  for (const k of ['skinLit', 'skinShd', 'hairLit', 'hairShd', 'tailLit', 'tailShd', 'napeLit', 'napeShd', 'eyeLit', 'eyeShd', 'irisLit', 'irisShd', 'mouthLit', 'mouthShd', 'mouthGlow', 'mouthSoft', 'blush', 'rimCol'])
+    COL[k] = new THREE.Color(TH[k]);
+  COL.white = new THREE.Color(1, 1, 1);
+  uniforms.uRimCol.value.copy(COL.rimCol); uniforms.uRimStr.value = TH.rimStr; uniforms.uRimPow.value = TH.rimPow; uniforms.uRimAdd.value = TH.rimAdd;
+  uniforms.uTrans.value = TH.trans;
+  uniforms.uSkinFD.value.set(TH.skinFD); uniforms.uRamp.value.z = TH.rampK; tmpC.set(TH.cheek); uniforms.uCheek.value.set(tmpC.r, tmpC.g, tmpC.b, TH.cheekK); uniforms.uSkinRim.value.set(TH.skinRim); uniforms.uSkinFill.value.set(TH.skinFill); // [light]
+  floor.material.blending = TH.floorAdd ? THREE.AdditiveBlending : THREE.NormalBlending; floor.material.needsUpdate = true;
+  floor.visible = TH.floorA > 0; halo.visible = TH.haloA > 0; outline.visible = TH.outline;
+  uniforms.uKey.value = TH.key; uniforms.uHairRimK.value = TH.hairRimK;
+  const mitLit = new THREE.Color('#E9CFDA'), mitShd = new THREE.Color('#B9A0BE');
+  for (let i = 0; i < N; i++) {
+    const it = items[i];
+    let lit = COL.skinLit, shd = COL.skinShd, fx = [it.ao || 1, 0, 0.8, 0], x4 = [0, 0, 0.12, 0], y4 = [CL.OTHER, 0, 0, 0];
+    if (it.k === K.SHELL) {
+      y4 = [it.cl, it.hlm, it.hlp, it.hlx || 0];
+      if (it.m === MT.SKIN) { fx = [it.ao, 0, it.bounce * TH.skinBounce, 0]; x4 = [it.tr, 0, it.edge, 0]; }
+      else if (it.m === MT.HAIR) {
+        // value varies in 2-wide vertical strands (+-6 %), not in rows
+        const sk = it.vk || 1 + 0.1 * (2 * hash(Math.floor((it.lock ? it.lx * 3 : it.lx + 5.5) / 2) * 7.1 + 3) - 1);
+        lit = tmpC.copy(COL.hairLit).multiplyScalar(sk).clone(); shd = tmpC2.copy(COL.hairShd).multiplyScalar(sk).clone();
+        fx = [it.ao, 0, it.bounce, it.gloss ? 1 : 0]; x4 = [0, 0, it.edge, 0]; // [hair] glossy tiles: smooth normal + the band (and the glint)
+        if (it.part) { lit = tmpC.copy(COL.hairShd).multiplyScalar(1.05).clone(); shd = PART_SHD; } // [hair] hairShd + 5 %
+        if (it.inner || it.shdLock) { lit = COL.hairShd; shd = PART_SHD; }
+      }
+      else if (it.m === MT.NAPE) { lit = COL.napeLit; shd = COL.napeShd; fx = [it.ao, 0, it.bounce, 0]; x4 = [0, 0, it.edge, 0]; }
+    }
+    else if (it.m === MT.TAIL) { // [hair] two vertical strand values, never horizontal bands; bevel/seams at 0.3x
+      const streak = it.cn === 2 && !it.q && it.idx >= 2 && it.idx <= 8, sk = streak ? 0.95 : it.cn === 2 ? (it.q ? 0.88 : 0.9) : 0.88; // tailLit = the bob mid-tone
+      lit = tmpC.copy(COL.tailLit).multiplyScalar(sk).clone(); shd = tmpC2.copy(COL.hairShd).multiplyScalar(sk).clone(); fx = [1, 0, 0, streak ? 1 : 0]; x4 = [0, 0, 0.04, 0]; y4 = [CL.TAIL, 0, 0, 0]; } // [hair] round 6: plum tailLit
+    else if (it.m === MT.EYE) { lit = COL.eyeLit; shd = COL.eyeShd; fx = [1, 0, 0, 0]; x4 = [0, 0, 0, 0]; y4 = [CL.PIXEL, 0, 0, 0]; }
+    else if (it.m === MT.MOUTH) { lit = COL.mouthLit; shd = COL.mouthShd; fx = [1, 0, 0, 0]; x4 = [0, 0, 0, 0]; y4 = [CL.PIXEL, 0, 0, 0]; }
+    else if (it.m === MT.CATCH) { lit = COL.white; shd = COL.white; fx = [1, 0, 0, 0]; x4 = [0, 0, 0, 0]; }
+    else if (it.m === MT.MOTE) { lit = COL.white; shd = COL.white; fx = [1, 1, 0, 0]; }
+    else if (it.m === MT.TIE) { lit = tmpC.setScalar(0.85).clone(); shd = lit; fx = [1, 1, 0, 0]; }
+    else if (it.m === MT.CHARM) { lit = tmpC.setScalar(it.core ? 1.0 : 0.62).clone(); shd = lit; fx = [1, 1, 0, 0]; x4 = [0, 0, 0, it.core ? 0.8 : 0]; }
+    else if (it.k === K.HAND) { lit = mitLit; shd = mitShd; fx = [0.95, 0, 0, 0]; x4 = [0, 0, 0.1, 0]; y4 = [CL.SKIN, 0, 0, 0]; }
+    B.lit.set([lit.r, lit.g, lit.b], i * 3); B.shd.set([shd.r, shd.g, shd.b], i * 3); B.fx.set(fx, i * 4); B.x.set(x4, i * 4); B.y.set(y4, i * 4);
+    // [light] mask id in the unused aX.y (only read under ?mask=1)
+    B.x[i * 4 + 1] = it.k === K.SHELL && it.m === MT.SKIN ? 1 : it.m === MT.EYE || it.m === MT.CATCH ? 2 : it.m === MT.MOUTH ? 3 : it.m === MT.BLUSH ? 4
+      : it.m === MT.HAIR || it.m === MT.NAPE || it.m === MT.TAIL ? 5 : it.m === MT.CHARM ? 6 : 0; // [light] charm magenta: floater counts it as connecting
+  }
+  if (MASK) { halo.visible = false; floor.visible = false; outline.visible = false; inner.visible = false; renderer.setClearColor(0x000000, 1); return; } // [light]
+  if (CLEAR && !clearHex) renderer.setClearColor(0x000000, 0);
+  else renderer.setClearColor(new THREE.Color(clearHex || APP_BG), 1);
+}
+
+// ---------------------------------------------------------------- reactions
+// Each reaction is a procedural layer: f(u, d, o) writes additive offsets into o; the system multiplies them by a
+// smooth weight (attack 0.22 s, release 0.38 s, or a 0.3 s fade when interrupted) and sums them over the base pose.
+// sat* keys drive the 4 motes (motes: how visible they are); tint drives the inner light only (at most 50 %); rib* bend the ponytail.
+const H = (x, y, z) => [x, y, z];
+const REACTIONS = {
+  nod:      { d: 1.3, desc: 'Two soft nods: yes, got it, agreed.', f: (u, d, o) => { const s = Math.sin(Math.PI * 1.85 * u); o.pitch = 0.24 * s * s; o.y = -0.15 * s * s; o.eyes = 'happy'; o.ribUp = 0.5 * s * s * (u > 0.55 ? 1 : 0); } },
+  shake:    { d: 1.3, desc: 'Head shake side to side: no / that is not right.', f: (u, d, o) => { o.yaw = 0.32 * Math.sin(TAU * 2.4 * u); o.eyeX = -0.4 * Math.sin(TAU * 2.4 * u); o.eyes = 'flat'; o.mouth = 'flat'; } },
+  happy:    { d: 1.6, desc: 'Little hops with ^ ^ eyes and blush: pleased, warm.', f: (u, d, o) => { const h = Math.abs(Math.sin(TAU * 1.4 * u)); o.y = 0.5 * h; o.sq = 0.06 * h - 0.04; o.eyes = 'happy'; o.mouth = 'laugh'; o.blush = 1; o.tint = 'warm'; o.tintAmt = 0.4; o.glow = 0.25 * Math.sin(Math.PI * u / d); } },
+  laugh:    { d: 1.8, desc: 'Rapid giggle bounce and wobble: something was funny.', f: (u, d, o) => { o.y = 0.28 * Math.abs(Math.sin(TAU * 4.5 * u)); o.roll = 0.09 * Math.sin(TAU * 2.2 * u); o.sq = 0.05 * Math.sin(TAU * 4.5 * u); o.eyes = 'happy'; o.mouth = 'laugh'; o.blush = 0.8; o.tint = 'warm'; o.tintAmt = 0.3; o.satY = 0.4 * Math.abs(Math.sin(TAU * 4.5 * u + 1)); o.motes = 1; o.glow = 0.15; } },
+  confused: { d: 2.0, desc: 'Head tilt, one squinted eye, eyes dart: unsure what was meant.', f: (u, d, o) => { o.roll = 0.24; o.eyes = ['open', 'narrow']; o.mouth = 'wavy'; o.eyeX = 0.35 * Math.sin(TAU * 0.8 * u); o.tint = 'blue'; o.tintAmt = 0.4; o.satR = -0.6; o.satY = 0.3 * Math.sin(TAU * 3 * u); o.motes = 1; } },
+  thinking_hard: { d: 2.4, desc: 'Eyes up and to the side, a tight fast crown of gems: working on it.', f: (u, d, o) => { o.eyes = 'open'; o.eyeScale = -0.02; o.eyeY = 0.8; o.eyeX = 0.6; o.roll = -0.12; o.crown = 1; o.satSpin = 5 * u; o.think = 1; o.tint = 'thinking'; o.tintAmt = 0.5; } },
+  surprised:{ d: 1.2, desc: 'Quick stretch, wide eyes and an o mouth: oh!', f: (u, d, o) => { const k = Math.exp(-3.5 * u); o.sq = 0.08 * k + 0.16 * k * Math.cos(9 * u); o.y = 0.45 * k; o.z = -0.6 * k; o.eyes = 'wide'; o.eyeScale = 0.33; o.mouth = 'o'; o.satR = 1.5 * k; o.motes = k; o.glow = 0.3 * k; o.ribUp = 1.2 * k; } },
+  sad:      { d: 2.2, desc: 'Sinks and droops, sad eyes, mittens together: sorry / apologetic.', f: (u, d, o) => { o.y = -0.5; o.pitch = -0.14; o.scale = -0.05; o.eyes = 'sad'; o.mouth = 'frown'; o.tint = 'lavender'; o.tintAmt = 0.45; o.glow = -0.2; o.ribDroop = 0.8; } },
+  shy:      { d: 2.0, desc: 'Turns aside, hides half behind her ponytail, mittens to her cheeks, blushes: flattered or embarrassed.', f: (u, d, o) => { o.yaw = -0.42; o.pitch = -0.1; o.eyeX = -0.7; o.eyeY = -0.5; o.eyes = 'happy'; o.blush = 1; o.blushW = 1; o.scale = -0.04; o.tint = 'pink'; o.tintAmt = 0.4; o.ribFace = 1; o.hL = H(-3.05, -2.1, 2.45); o.hR = H(3.05, -2.1, 2.45); } },
+  excited:  { d: 1.8, desc: 'Fast bouncing, star eyes, motes whirl: great news!', f: (u, d, o) => { const h = Math.abs(Math.sin(TAU * 3 * u)); o.y = 0.5 * h; o.sq = 0.1 * h - 0.03; o.eyes = 'star'; o.eyeScale = 0.12; o.mouth = 'smile'; o.glow = 0.2; o.satR = 1.2; o.satSpin = 6 * u; o.motes = 1; o.tint = 'gold'; o.tintAmt = 0.4; o.ribUp = 0.5 * h; } },
+  sleepy:   { d: 2.4, desc: 'Big slow yawn, droopy eyes, dims: tired / it is late.', f: (u, d, o) => { const yw = Math.sin(Math.PI * clamp(u / (d * 0.75), 0, 1)); o.eyes = yw > 0.5 ? 'sleep' : 'flat'; o.mouth = yw > 0.35 ? 'o' : 'none'; o.sq = 0.12 * yw; o.roll = 0.12 * yw; o.y = -0.4; o.glow = -0.25; o.ribDroop = 0.5; } },
+  wave:     { d: 2.0, desc: 'A swaying head tilt with a ponytail flick: hello / goodbye.', f: (u, d, o) => { const s = Math.sin(TAU * 1.4 * u); o.roll = 0.13 * s; o.yaw = 0.08 * s; o.ribUp = 0.5 * Math.abs(s); o.eyes = 'happy'; o.blush = 0.5; o.mouth = 'smile'; } },
+  celebrate:{ d: 2.4, desc: 'Jumps with both mittens up, motes burst up and come back: success / done!', f: (u, d, o) => { const j = Math.sin(Math.PI * clamp(u / 1.2, 0, 1)); o.y = 0.6 * j; o.sq = 0.1 * Math.sin(TAU * 2 * u); o.eyes = 'happy'; o.mouth = 'laugh'; o.glow = 0.25; o.satR = 2.0; o.satSpin = 4 * u; o.satY = 0.8 * j; o.motes = 1; o.tint = 'gold'; o.tintAmt = 0.45; o.ribUp = 1.2 * j; const sh = 0.18 * Math.sin(TAU * 1.5 * u); o.hL = H(-4.3, -3.5 + sh, 1.9); o.hR = H(4.3, -3.5 - sh, 1.9); } },
+  shrug:    { d: 1.8, desc: 'A little lift, tilt and glance away: no idea / whatever / not for me.', f: (u, d, o) => { const k = Math.sin(Math.PI * clamp(u / 0.9, 0, 1)); o.y = 0.25 * k; o.roll = 0.15; o.sq = 0.05; o.eyes = 'flat'; o.eyeX = -0.5; o.mouth = 'flat'; o.ribUp = 0.3 * k; } },
+  focus:    { d: 2.2, desc: 'Leans in, eyes narrow, motes tighten into the ear arc: paying close attention.', f: (u, d, o) => { o.pitch = 0.16; o.z = 0.9; o.eyes = 'narrow'; o.ear = 1; o.satR = -0.8; o.tint = 'cyan'; o.tintAmt = 0.35; o.glow = 0.15; o.ribPerk = 0.6; } },
+  // wake: spark, the hairline lights left to right, the eyes open, the tail settles (~0.6 s). Spark, sweep and eyes are
+  // driven from wakeU() in writeInstances; this layer adds the tail flick and the light swell.
+  wake:     { d: 0.9, desc: 'Wakes up: a spark, the hairline lights left to right, eyes open, the ponytail settles.', f: (u, d, o) => { o.ribUp = 0.55 * smooth(0.2, 0.4, u) * (1 - smooth(0.4, 0.85, u)); o.sq = -0.04 * Math.sin(Math.PI * clamp((u - 0.3) / 0.3, 0, 1)); } }
+};
+// [face] surprised: a 5x7 pill at idle scale (not a skull), the lit ring mouth, and a brow raise through HAIR's fringeLift
+{ const f0 = REACTIONS.surprised.f;
+  REACTIONS.surprised.f = (u, d, o) => { f0(u, d, o); o.eyeScale = -0.02; o.fringeLift = smooth(0, 0.06, u) * (1 - smooth(0.3, 0.45, u)); }; }
+// [face] round 6: celebrate, happy and laugh show the 7-wide grin; the cream blush sparkle only in shy, happy and celebrate
+for (const nm of ['celebrate', 'happy', 'laugh', 'shy']) { const f0 = REACTIONS[nm].f;
+  REACTIONS[nm].f = (u, d, o) => { f0(u, d, o); if (nm !== 'shy') o.mouth = 'grin'; if (nm !== 'laugh') o.sparkle = 1; }; }
+const REACTION_NAMES = Object.keys(REACTIONS);
+for (const nm of REACTION_NAMES) { const f0 = REACTIONS[nm].f; REACTIONS[nm].f = (u, d, o) => { f0(u, d, o); if (o.ribUp > 1) o.ribUp = 1; }; } // [hair] ribUp <= 1 = the 20 deg pose
+const NUM_KEYS = ['pitch', 'yaw', 'roll', 'y', 'z', 'sq', 'scale', 'glow', 'core', 'think', 'satR', 'satY', 'satTilt', 'satSpin', 'eyeX', 'eyeY', 'eyeScale', 'blush', 'dim', 'tintAmt',
+  'ribUp', 'ribFace', 'ribDroop', 'ribPerk', 'crown', 'ear', 'motes', 'hairK', 'blushBase'];
+const RM_DROP = { pitch: 1, eyeSy: 1, yaw: 1, roll: 1, y: 1, z: 1, sq: 1, satSpin: 1, satY: 1, satR: 1, ribUp: 1 }; // reduced motion: glow, face, light only
+if (!NUM_KEYS.includes('fringeLift')) NUM_KEYS.push('fringeLift'); // [face] additive brow-raise key (HAIR reads pose.fringeLift)
+
+function reactionWeight(r, t) {
+  const u = t - r.t0, d = REACTIONS[r.name].d;
+  let w = smooth(0, 0.22, u) * (1 - smooth(d - 0.38, d, u));
+  if (r.tRel !== null) w = Math.min(w, r.wRel * (1 - smooth(r.tRel, r.tRel + 0.3, t)));
+  return w;
+}
+function triggerReaction(list, name, t) {
+  if (!REACTIONS[name]) return;
+  for (const r of list) if (r.tRel === null) { r.wRel = reactionWeight(r, t); r.tRel = t; }
+  list.push({ name, t0: t, tRel: null, wRel: 1 });
+  while (list.length > 4) list.shift();
+}
+const ro = {};
+const vA = new THREE.Vector3(), tintTmp = new THREE.Color();
+function applyReactions(list, pose, t, gain) {
+  let best = 0, bestEyes = null, bestMouth = null;
+  const rm = reduced(); pose.wake = -1;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const r = list[i]; const w = reactionWeight(r, t) * gain;
+    if (t - r.t0 > REACTIONS[r.name].d || (r.tRel !== null && t > r.tRel + 0.3)) { list.splice(i, 1); continue; }
+    if (r.name === 'wake') pose.wake = t - r.t0;
+    if (w <= 0) continue;
+    for (const k in ro) delete ro[k];
+    REACTIONS[r.name].f(t - r.t0, REACTIONS[r.name].d, ro);
+    for (const k of NUM_KEYS) if (ro[k] !== undefined && !(rm && RM_DROP[k])) pose[k] += w * ro[k];
+    if (ro.tint && TINTS[ro.tint]) pose.tint.lerp(tintTmp.set(TINTS[ro.tint]), w * clamp(ro.tintAmt === undefined ? 0.4 : ro.tintAmt, 0, 0.5));
+    if (ro.hL) pose.hL.lerp(vA.fromArray(ro.hL), w);
+    if (ro.hR) pose.hR.lerp(vA.fromArray(ro.hR), w);
+    const ru = t - r.t0, rd = REACTIONS[r.name].d;
+    if (w > best && r.tRel === null && ru > 0.08 && ru < rd - 0.45) { best = w; bestEyes = ro.eyes || null; bestMouth = ro.mouth || null; }
+  }
+  if (bestEyes) pose.eyes = bestEyes;
+  if (bestMouth && pose.mouth !== 'speak') pose.mouth = bestMouth;
+}
+
+// ---------------------------------------------------------------- states
+const STATES = {
+  idle: 'Awake: breathes, blinks, follows your finger, a soft little smile; the amber hairline glows under her fringe.',
+  sleeping: 'Dozing: closed U eyes, head tilted, ponytail droops, dim warm breath; three shrinking gems rise like a "z".',
+  listening: 'Leans in, eyes wide, ponytail perks out like a raised ear, motes open into an arc and the teal light follows your voice.',
+  thinking: 'Open eyes up and to the side, a tilted crown of six gems with a bright comet lead turns above her head.',
+  speaking: 'A bright D mouth follows the voice (the brightest point on her), warm steady light, voice motes at her mouth corners.',
+  interrupted: 'Yield: a 120 ms pop, the mouth snaps shut, one wide blink, the ear arc comes in, then a small "yes?" dip into listening.',
+  ignored: 'Not talking to me: a 1 s glance down with a small tilt, the light dims a little, then back to idle.',
+  notowner: 'Unknown voice: polite but reserved, low pill eyes looking away, a flat mouth, no blush, cool grey light.',
+  error: 'Something broke: tilt, > < eyes that settle into sad after 3 s, a few cubes fall out, a slow red pulse (no flicker).',
+  offline: 'Unplugged: lantern out, hollow eyes, slumps forward, ponytail draped in front.'
+};
+const STATE_LABEL = { notowner: 'not owner' };
+const BASE = { pitch: 0, nod: 0, yaw: 0, roll: 0, y: 0, z: 0, sq: 0, scale: 1, glow: 0, core: 0, light: 0.45, listen: 0, speak: 0, think: 0,
+  jitter: 0, dim: 1, desat: 0, opacity: 1, tintAmt: 0, satR: 0, satY: 0, satTilt: 0, satVis: 1, satSpin: 0, drift: 1,
+  fIdle: 1, ear: 0, crown: 0, voice: 0, rest: 0, offl: 0, motes: 0, ribPerk: 0, ribDroop: 0, ribDrape: 0, ribFace: 0, ribUp: 0, err: 0,
+  follow: 1, eyeScale: 0.92, eyeSy: 1, lowLid: 0, eyeX: 0, eyeY: 0, blush: 0, blushBase: 0.35, handVis: 1, breath: 0.022, bobAmp: 0.2, halo: 1,
+  sleep: 0, offline: 0, accent: 1, hairK: 0.7 };
+BASE.blushBase = 0.6; BASE.blushW = 0; NUM_KEYS.push('blushW'); // [face] blush 60 % at rest (100 % in shy and happy); blushW unused since round 6
+BASE.sparkle = 0; NUM_KEYS.push('sparkle'); // [face] 0..1: the cream blush sparkle (shy, happy, celebrate)
+BASE.fringeLift = 0; if (!NUM_KEYS.includes('fringeLift')) NUM_KEYS.push('fringeLift'); // [hair] 0..1: lifts the fringe tips 0.3 voxel (a brow raise; FACE drives it from surprised)
+const FAST = { listen: 10, speak: 10, sq: 14, nod: 14, z: 8, blush: 8, light: 14, ribPerk: 5, ribDroop: 4, ribDrape: 3, err: 9, eyeScale: 10,
+  lowLid: 22, pitch: 9, scale: 12, ear: 8, hairK: 5, eyeSy: 10 };
+// hairline level per state, relative to iteration 2's idle line (idle 0.7; speaking a fixed 0.8 x idle)
+const HAIRK = { idle: 0.7, listening: 0.9, thinking: 0.8, speaking: 0.56, interrupted: 0.9, ignored: 0.56, notowner: 0.5, error: 0.55,
+  offline: 0, sleeping: 0.28 };
+// mitten rest spots (tucked inside the jaw: invisible until a pose pulls them out)
+const HAND_L = new THREE.Vector3(-2.6, -3.6, 0.4), HAND_R = new THREE.Vector3(2.6, -3.6, 0.4);
+
+if (!('fringeLift' in BASE)) BASE.fringeLift = 0; // [face]
+let state = 'idle', stateStart = 0, emotion = 'none', car = false;
+const P = Object.assign({}, BASE);
+const T = Object.assign({}, BASE);
+const lightCur = new THREE.Color(LIGHTS.idle[0]), lightTarget = new THREE.Color(LIGHTS.idle[0]);
+const hLcur = HAND_L.clone(), hRcur = HAND_R.clone(), hLt = new THREE.Vector3(), hRt = new THREE.Vector3();
+const liveReactions = [];
+let crownAng = 0;
+
+function stateTargets(t, mic, amp, ampSlow) {
+  Object.assign(T, BASE);
+  hLt.copy(HAND_L); hRt.copy(HAND_R);
+  let eyes = 'open', mouth = 'soft', light = 'idle';
+  const u = t - stateStart;
+  T.light = LIGHTS.idle[1]; T.fIdle = 0; T.hairK = HAIRK[state] ?? 0.7;
+  switch (state) {
+    case 'sleeping':
+      eyes = 'sleep'; mouth = 'none'; light = 'sleeping'; T.light = 0.2 * (0.7 + 0.3 * Math.cos(TAU * t / (2 * L))); T.breath = 0.045; T.y = -0.4; T.roll = 0.175;
+      T.follow = 0; T.sleep = 1; T.bobAmp = 0.08; T.rest = 1; T.ribDroop = 1; T.halo = 0.5; break;
+    case 'listening':
+      light = 'listening'; mouth = 'none'; T.light = 0.55 + 0.45 * mic; T.listen = 1; T.pitch = 0.14; T.z = 0.6; T.eyeScale = 1.10; T.scale = 1 + 0.03 + mic * 0.03;
+      T.ear = 1; T.ribPerk = 1; T.roll = 0.05; break;
+    case 'thinking': {
+      light = 'thinking'; mouth = 'small'; T.light = 0.7; T.think = 1; T.follow = 0; T.eyeX = 0.6; T.eyeY = 0.8; T.eyeScale = 0.9; T.roll = -0.1;
+      T.crown = 1; T.bobAmp = 0.12;
+      // long calls: every 4 s the crown speeds up for 0.6 s and the eyes flick, so she never looks frozen
+      if (u > 4 && ((u - 4) % 4) < 0.6) { const b = Math.sin(Math.PI * ((u - 4) % 4) / 0.6); T.eyeX -= 1.1 * b; T.light = 0.8; }
+      break; }
+    case 'speaking':
+      // light follows only the phrase envelope (never below idle + 0.15, swing +-0.2); syllables live on the mouth and motes
+      light = 'speaking'; T.light = 0.6 + 0.4 * ampSlow; T.speak = 1; mouth = 'speak'; T.eyeScale = 0.95; T.eyeY = 0.18;
+      T.lowLid = smooth(0.62, 0.85, amp); T.blush = 0.15;
+      T.sq = amp * 0.06; T.nod = clamp(0.06 * (2 * amp - 0.6), -0.06, 0.06); T.voice = 1; T.drift = 0.2; T.follow = 0.6; break;
+    case 'interrupted': { // yield: a 120 ms pop, mouth shut at once, wide blink, ear arc in, then a forward "yes?" dip into listening
+      light = 'listening'; mouth = 'shut'; const pop = u < 0.12 ? Math.sin(Math.PI * u / 0.12) : 0, inn = smooth(0.2, 0.42, u);
+      T.light = 0.75; T.listen = inn; T.scale = 1 - 0.04 * pop + 0.03 * inn; T.pitch = -0.087 * pop + 0.14 * inn + 0.07 * Math.sin(Math.PI * clamp((u - 0.3) / 0.4, 0, 1));
+      T.z = 0.6 * inn; T.ear = inn; T.ribPerk = inn; T.eyeScale = 0.92 - 0.02 * inn; break; }
+    case 'ignored': {
+      light = 'ignored'; mouth = 'soft'; const g = 1 - smooth(0.8, 1.1, u);
+      T.light = LIGHTS.idle[1] * 0.8; T.follow = 0.2; T.eyeY = -0.85 * g * smooth(0, 0.12, u); T.eyeX = -0.2 * g; T.roll = 0.052; T.blushBase = 0; break; }
+    case 'notowner':
+      light = 'notowner'; mouth = 'flat'; T.light = 0.35; T.pitch = -0.14; T.yaw = 0.26; T.z = -0.5; T.scale = 0.95; T.eyeSy = 0.75; T.follow = 0;
+      T.drift = 0.3; T.eyeX = -0.7; T.blushBase = 0; break;
+    case 'error':
+      light = 'error'; T.light = u < 3 ? 0.55 + 0.15 * Math.sin(TAU * 1.2 * u) : 0.4; eyes = u < 3 ? 'chev' : 'sad'; mouth = u < 3 ? 'flat' : 'frown';
+      T.roll = -0.21; T.y = -0.3; T.err = 1; T.drift = 0; T.follow = 0.1; T.dim = 0.85; T.blushBase = 0.15; break;
+    case 'offline':
+      light = 'offline'; mouth = 'none'; T.light = 0.05; T.desat = 0.4; eyes = 'off'; T.y = -0.45; T.sq = -0.06; T.roll = 0.06; T.pitch = 0.21;
+      T.follow = 0; T.breath = 0.006; T.bobAmp = 0.02; T.offline = 1; T.halo = 0.2; T.ribDrape = 1; T.accent = 0; T.blushBase = 0; break;
+  }
+  // [face] state faces: listening keeps the soft smile, thinking a flat 3x1 toward her right, notowner looks 2 px away,
+  // ignored glances at least a row down
+  if (state === 'listening' && mouth === 'none') mouth = 'soft';
+  if (state === 'listening') T.eyeScale = 0.9; // [face] the lean-in and scale already enlarge her; the pill stays <= 1.1x idle area
+  if (state === 'offline') mouth = 'off';
+  if (state === 'thinking' && mouth === 'small') mouth = 'think';
+  if (state === 'notowner') T.eyeX = -2.2;
+  if (state === 'ignored') { // [face] round 6: half-lid and a glance 2 rows down from +0.2 to +1.4 s, hairline at 50 %
+    T.eyeY = -2.3 * smooth(0.2, 0.3, u) * (1 - smooth(1.3, 1.4, u)); T.hairK = 0.5 * HAIRK.idle; }
+  const emoOk = ['idle', 'listening', 'speaking', 'thinking'].indexOf(state) >= 0;
+  const quiet = mouth === 'none' || mouth === 'soft' || mouth === 'small';
+  if (emoOk && emotion === 'happy') { eyes = 'happy'; T.blush = 1; T.sparkle = 1; T.bobAmp += 0.1; T.drift *= 1.4; if (quiet) mouth = 'smile'; }
+  if (emoOk && emotion === 'confused') { eyes = ['open', 'narrow']; T.roll += 0.2; T.eyeX += 0.3 * Math.sin(t * 1.3); if (quiet) mouth = 'wavy'; }
+  if (emoOk && emotion === 'apologetic') { eyes = 'sad'; T.y -= 0.4; T.scale *= 0.95; T.pitch -= 0.1; T.drift *= 0.6; T.ribDroop = 0.6; if (quiet) mouth = 'frown'; }
+  if (car) {
+    T.satVis = 0; T.follow = 0; T.listen *= 0.3; T.speak *= 0.35; T.sq *= 0.3; T.nod *= 0.3; T.bobAmp *= 0.35; T.handVis = 0; T.halo *= 0.6; T.scale *= 0.94; T.drift = 0;
+    if (state === 'idle' || state === 'listening' || state === 'speaking') { eyes = 'calm'; light = 'car'; T.light = 0.45 + 0.2 * ampSlow; T.lowLid = 0; T.eyeY = 0; }
+    if (mouth === 'speak') mouth = 'soft';
+    T.pitch *= 0.4; T.z *= 0.3; T.ribPerk *= 0.3;
+  }
+  if (small) T.handVis = 0; // mittens never show at <= 180 px
+  T.handVis = 0; // [light] integration, D9: the mittens stay hidden in every state (celebrate/shy showed them at the jaw)
+  if (CLEAR) T.bobAmp *= 0.5; // overlay: calmer idle
+  if (reduced()) { T.bobAmp = 0; T.roll = 0; T.sq = 0; T.nod = 0; T.breath = 0; T.drift = 0; }
+  lightTarget.set(LIGHTS[light][0]);
+  return { eyes, mouth };
+}
+
+// ---------------------------------------------------------------- verlet chains (ponytail, tassel), simulated in world space
+class Chain {
+  constructor(n, seg) { this.n = n; this.seg = seg; this.p = []; this.o = []; this.init = false; for (let i = 0; i < n; i++) { this.p.push(new THREE.Vector3()); this.o.push(new THREE.Vector3()); } }
+  step(dt, targets, rate, slack, fixed, keep0 = 0.88) {
+    const p = this.p, o = this.o;
+    if (fixed || !this.init) { for (let i = 0; i < this.n; i++) { p[i].copy(targets[i]); o[i].copy(targets[i]); } this.init = true; return; }
+    if (dt <= 0) return;
+    p[0].copy(targets[0]); o[0].copy(targets[0]);
+    const keep = Math.pow(keep0, dt * 60);
+    for (let i = 1; i < this.n; i++) {
+      const s = i / (this.n - 1);
+      const vx = (p[i].x - o[i].x) * keep, vy = (p[i].y - o[i].y) * keep, vz = (p[i].z - o[i].z) * keep;
+      o[i].copy(p[i]);
+      p[i].x += vx; p[i].y += vy - 6 * dt * dt; p[i].z += vz;
+      p[i].lerp(targets[i], damp(rate * (1 - slack * s), dt));
+    }
+    for (let it = 0; it < 2; it++) for (let i = 1; i < this.n; i++) {
+      vA.subVectors(p[i], p[i - 1]); const len = vA.length() || 1e-6;
+      p[i].copy(p[i - 1]).addScaledVector(vA, this.seg / len);
+    }
+  }
+}
+const rib = new Chain(NR, 0.5), tassel = new Chain(3, 0.24);
+const RIB_ROOT = new THREE.Vector3().fromArray(TAIL.root); // [hair] high behind her left ear, sunk into the bob
+const RIB_POSES = { // quadratic bezier controls relative to the root (body space)
+  rest:  [[0.65, -3.1, 0.05], [2.1, -7.0, 0.15]],   // first link ~12 deg outward, then out past the bob, hangs just outside the bob to below the chin
+  perk:  [[1.2, -2.7, 0.3], [3.0, -5.5, 0.6]],      // swings out ~28 deg like a raised ear
+  droop: [[0.1, -3.1, -0.5], [-0.1, -6.2, -1.1]],   // hangs straight down the back
+  drape: [[0.8, -1.0, 2.2], [0.0, -5.4, 4.0]],      // offline: draped over the shoulder in front
+  face:  [[0.9, -1.7, 1.9], [0.7, -5.6, 3.3]],      // shy: drapes forward over her shoulder, beside the cheek, below the eye line
+  up:    [[1.2, -2.9, 0.0], [2.45, -6.8, 0.1]]      // surprise/celebrate: flicks out, capped at 20 deg
+};
+// [hair] round 6: the rest pose is an S, not a bezier: out of the tie 15 deg above horizontal (up and out), round into a hang
+// by ~35 % of the length, a slight outward drift, then the last 3 links curl 20 deg back toward the nape. Body space, from the root.
+const REST_S = (() => { const out = [new THREE.Vector3()], L = 0.5;
+  for (let i = 1; i < NR; i++) { const s = (i - 0.5) / (NR - 1), a = (105 - 97 * smooth(0, 0.36, s) - 20 * smooth(NR - 4, NR - 1, i)) * Math.PI / 180;
+    out.push(out[i - 1].clone().add(new THREE.Vector3(Math.sin(a) * L, -Math.cos(a) * L, -0.07 * L * (1 - smooth(0, 0.5, s))))); }
+  return out; })();
+// [hair] the tail's secondary swing: a spring on her total yaw (~120 ms behind, ~6 deg overshoot on a quick turn), applied to the rest pose
+const TAIL_SW = { w: 10, z: 0.6, max: 0.5, y: 0, v: 0, init: false };
+const RIB_KEYS = [['perk', 'ribPerk'], ['droop', 'ribDroop'], ['drape', 'ribDrape'], ['face', 'ribFace'], ['up', 'ribUp']];
+const ribC1 = new THREE.Vector3(), ribC2 = new THREE.Vector3();
+const ribT = Array.from({ length: NR }, () => new THREE.Vector3()), tasT = Array.from({ length: 3 }, () => new THREE.Vector3());
+const ribL = Array.from({ length: NR }, () => new THREE.Vector3()), ribU = Array.from({ length: NR }, () => new THREE.Vector3()),
+  ribV = Array.from({ length: NR }, () => new THREE.Vector3()), ribD = Array.from({ length: NR }, () => new THREE.Vector3());
+
+// ---------------------------------------------------------------- pose → instances
+const pose = Object.assign({}, BASE, { tint: new THREE.Color(), hL: new THREE.Vector3(), hR: new THREE.Vector3(), eyes: 'open', mouth: 'none', blink: 1, mic: 0, amp: 0, ampSlow: 0, wake: -1, view: 0 });
+const hInvQ = new THREE.Quaternion(), hT = new THREE.Matrix4(); // [light]
+const bq = new THREE.Quaternion(), eul = new THREE.Euler(), hq = new THREE.Quaternion(), sq4 = new THREE.Quaternion(), rigInv = new THREE.Quaternion();
+const vP = new THREE.Vector3(), vS = new THREE.Vector3(), vT = new THREE.Vector3(), m4 = new THREE.Matrix4(), gemQ = new THREE.Quaternion(), gemBase = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.62, 0, Math.PI / 4));
+const diaQ = new THREE.Quaternion(), ROT45 = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, Math.PI / 4));
+const XF = { sxz: 1, sy: 1, S: 1, bodyY: 0, z: 0 };
+const UPX = new THREE.Vector3(0, 0, 1), UPY = new THREE.Vector3(1, 0, 0);
+const hairQ = new THREE.Quaternion(), tailQ = new THREE.Quaternion(), tailM = new THREE.Matrix4(), tailZ = new THREE.Vector3(), tailR = new THREE.Vector3(); // [hair]
+function bodyXf(x, y, z, out) {
+  out.set(x * XF.sxz * XF.S, ((y + PIV) * XF.sy - PIV) * XF.S, z * XF.sxz * XF.S).applyQuaternion(bq);
+  out.y += XF.bodyY; out.z += XF.z; return out;
+}
+// mote formations (world units, body space): shoulders (reactions only), ear arc, crown, voice arc, sleep gems
+const COS15 = Math.cos(0.26), SIN15 = Math.sin(0.26);
+const CROWN_SZ = [1.45, 0.55, 0.65, 0.75, 0.88, 1.0]; // the comet lead and its tail (the gems behind it shrink)
+const SLEEP_SZ = [1, 0.67, 0.44];                       // 0.36 / 0.24 / 0.16
+let moteSz = 1;
+function moteForm(i, t, p, out) {
+  const base = i < 4, side = i < 2 ? -1 : 1, j = i % 2, dr = reduced() ? 0 : p.drift, ph = TAU * t / L;
+  const ear = base ? p.ear : 0, voice = base ? p.voice : 0, rest = i >= 3 ? p.rest : 0, mo = base ? p.motes : 0;
+  const wIdle = Math.max(0, mo - ear - p.crown - voice) + 0.001;
+  const w = wIdle + ear + p.crown + voice + rest;
+  let x = 0, y = 0, z = 0, vis = 0; moteSz = 1;
+  { const k = wIdle / w; x += k * (base ? side * (5.0 + 0.3 * j) + dr * 0.2 * Math.sin(ph + i * 1.3) : 0); y += k * (base ? 0.2 + 1.5 * j + dr * 0.3 * Math.sin(ph + i * 1.7) : 6); z += k * (base ? 1.2 - 1.0 * j : 0); }
+  if (ear > 1e-3) { const k = ear / w, a = Math.PI * (0.13 + 0.247 * i), r = Math.min(7.3, 5.6 + p.mic * (0.3 + 0.35 * hash(i + 3)) * Math.max(p.listen, 0.4));
+    const sh = reduced() ? 0 : (1 - p.mic) * 0.12 * Math.sin(TAU * t + i * 1.6);
+    x += k * Math.cos(a) * r; y += k * (0.3 + Math.sin(a) * r * 0.9 + sh); z += k * 2.6; }
+  if (p.crown > 1e-3) { const k = p.crown / w, a = crownAng + TAU * i / 6, rx = Math.cos(a) * 2.5, rz = Math.sin(a) * 1.6;
+    x += k * rx; y += k * (6.1 - rz * SIN15); z += k * rz * COS15; moteSz += (CROWN_SZ[i] - 1) * clamp(p.crown, 0, 1); }
+  if (voice > 1e-3) { const k = voice / w; // [light] one mote beside each mouth corner, 0.6+ voxel outside the face, never under the mouth
+    x += k * side * (5.1 + 0.15 * p.amp) * VS; y += k * (MOUTH_Y + 0.12); z += k * 2.5; }
+  if (rest > 1e-3) { const k = rest / w, g = i - 3, uu = (((t - g * 0.6) / 4) % 1 + 1) % 1, life = uu * 4 / 2.4;
+    x += k * (3.4 + 0.5 * g + 0.9 * Math.min(life, 1)); y += k * (3.6 + 0.9 * g + 1.6 * Math.min(life, 1)); z += k * 1.2; moteSz = SLEEP_SZ[g]; }
+  vis = clamp(ear + p.crown + (i === 0 || i === 3 ? voice : 0) + mo, 0, 1);
+  if (rest > 1e-3) { const g = i - 3, uu = (((t - g * 0.6) / 4) % 1 + 1) % 1, life = uu * 4 / 2.4;
+    vis = Math.max(vis, life <= 1 ? rest * p.sleep * smooth(0, 0.12, life) * (1 - smooth(0.75, 1, life)) : 0); }
+  if (voice > 0.5) moteSz *= 0.7 * (0.8 + 0.4 * p.amp) * (0.6 + 0.4 * smooth(0.05, 0.3, p.ampSlow)); // 70 %; syllable pulse, 60 % in word gaps
+  // reaction offsets: radial scale, spin about y, lift
+  const f = 1 + clamp(p.satR, -2, 2) / 14, c = Math.cos(p.satSpin), s = Math.sin(p.satSpin);
+  const xr = x * c - z * s, zr = x * s + z * c;
+  out.set(xr * f, y + p.satY, zr * f);
+  return vis;
+}
+const visSpring = (it, target, dt, canonical) => {
+  if (target <= 0) { it.vis = 0; it.vv = 0; return; } // [face] a cell that turns off is gone on that frame (no dots, no fly-off)
+  if (canonical || dt <= 0 || reduced()) { it.vis += (target - it.vis) * (1 - Math.exp(-(reduced() ? 15 : 30) * Math.max(dt, 1e-4))); it.vv = 0; return; }
+  const k = 900, c = 2 * 0.45 * 30; // springy pop: 0 → ~1.15 → 1 in ~60 ms
+  const n = Math.ceil(dt / (1 / 240)), h = dt / n;
+  for (let q = 0; q < n; q++) { it.vv += ((target - it.vis) * k - it.vv * c) * h; it.vis += it.vv * h; }
+};
+const IM = vox.instanceMatrix.array;
+const glint = { next: 9, t0: -10 }; // [light]
+const W = { lit: [0, 0, 0], shd: [0, 0, 0] };
+const OPEN_LIKE = { open: 1, wide: 1, calm: 1, sad: 1, narrow: 1 };
+// [face] face colours that are not in applyTheme's COL list (catchlight compensates the theme key so it renders #F4F0FF)
+const FC = { th: null };
+// body squash and scale move voxel centres but not voxel sizes, so a face pixel is placed relative to the skin's front
+// face after that transform: `lift` world units proud of the skin plane under it (fz = faceZ there)
+const onFace = (fz, lift) => fz - 0.425 + (0.4 + lift) / (XF.sxz * XF.S);
+function faceCols() {
+  if (FC.th === TH) return; FC.th = TH;
+  for (const k of ['mouthRose', 'mouthRing', 'eyeOff', 'mouthOff', 'sparkle']) FC[k] = new THREE.Color(TH[k]);
+  FC.mouthFlat = new THREE.Color(TH.skinLit).lerp(new THREE.Color(TH.mouthSoft), 0.7); // [face] notowner: the flat line at 70 %
+  FC.catchLit = new THREE.Color(TH.catchLit).multiplyScalar(1 / (TH.key || 1));
+}
+function writeInstances(t, tb, dt, canonical) {
+  const p = pose, S = p.scale, rm = reduced();
+  const bob = p.bobAmp * Math.cos(TAU * tb / L), breath = p.breath * Math.cos(TAU * 2 * tb / L);
+  const sqv = p.sq + breath; XF.sy = 1 + sqv; XF.sxz = 1 - sqv * 0.5; XF.S = S; XF.bodyY = p.y + bob; XF.z = p.z;
+  bq.setFromEuler(eul.set(p.pitch + p.nod, p.yaw, p.roll, 'YXZ'));
+  uniforms.uBodyInv.value.setFromMatrix4(hairM4.makeRotationFromQuaternion(hairInvQ.copy(bq).invert())); vT.set(0, HBAND.flat, 0).applyQuaternion(bq); uniforms.uHairUp.value.set(vT.x, vT.y, vT.z, HBAND.flatZ * HBAND.flat); // [hair]
+  rig.updateMatrixWorld(); rigInv.copy(rig.quaternion).invert();
+  { const k = 1 / (XF.S * VS), H = uniforms.uHead.value; // [light] bodyXf inverse, in voxels
+    H.makeRotationFromQuaternion(hInvQ.copy(bq).invert()).multiply(hT.makeTranslation(0, -XF.bodyY, -XF.z));
+    H.premultiply(hT.makeScale(k / XF.sxz, k / XF.sy, k / XF.sxz)).premultiply(hT.makeTranslation(0, (PIV / XF.sy - PIV) / VS, 0));
+    camera.updateMatrixWorld(); uniforms.uCamH.value.setFromMatrixPosition(camera.matrixWorld); rig.worldToLocal(uniforms.uCamH.value).applyMatrix4(H); } // the camera in head grid
+  const eox = p.eyeX * 0.3, eoy = p.eyeY * 0.22, es = p.eyeScale, esy = p.eyeSy, bl = p.blink;
+  if (!rm && dt > 0) gemQ.setFromAxisAngle(UPY.set(0, 1, 0), TAU * tb / L).multiply(gemBase); else gemQ.copy(gemBase);
+  diaQ.copy(bq).multiply(ROT45);
+  const accK = small ? 1.4 : 1;
+  // wake: spark (0-0.18 s), hairline sweeps left to right (0.08-0.42 s), eyes open (0.3-0.45 s), light swells in
+  const wu = p.wake, waking = wu >= 0 && wu < 0.9;
+  const wakeLight = waking ? (rm ? smooth(0, 0.5, wu) : 0.15 + 0.85 * smooth(0.05, 0.45, wu)) : 1;
+  // [face] wake eyes: the closed 1-px line until 0.28 s, then the rows open from the bottom up (a lid, never shrinking pixels)
+  // [face] round 5: closed curve until 0.3 s, then the whole pill (with its catchlight) on one frame: no bars, no boxes
+  const wakeEyes = waking && wu < (rm ? 0.1 : 0.3) ? 0 : 1;
+  // ponytail targets (body space → world), then simulate
+  const wsum = RIB_KEYS.reduce((a, [, k]) => a + Math.max(0, p[k]), 0), wr = Math.max(0, 1 - wsum), wn = Math.max(1, wsum);
+  ribC1.set(0, 0, 0); ribC2.set(0, 0, 0);
+  for (const [nm, k] of RIB_KEYS) { const w = Math.max(0, p[k]) / wn; if (w > 0) { ribC1.addScaledVector(vT.fromArray(RIB_POSES[nm][0]), w); ribC2.addScaledVector(vT.fromArray(RIB_POSES[nm][1]), w); } }
+  const sway = rm ? 0 : 0.12 * Math.sin(TAU * tb / L + 0.6) * (1 - p.offline);
+  { const Y = p.yaw + rig.rotation.y, S2 = TAIL_SW; // [hair] the secondary swing lags her yaw (spring), rotating the rest S about the root
+    if (!S2.init || canonical || rm || dt <= 0) { S2.y = Y; S2.v = 0; S2.init = true; }
+    else { const h = Math.min(dt, 1 / 30); S2.v += (S2.w * S2.w * (Y - S2.y) - 2 * S2.z * S2.w * S2.v) * h; S2.y += S2.v * h; }
+    S2.d = clamp(S2.y - Y, -S2.max, S2.max); }
+  const swC = Math.cos(TAIL_SW.d), swS = Math.sin(TAIL_SW.d);
+  for (let i = 0; i < NR; i++) {
+    const s = i / (NR - 1), b = 2 * (1 - s) * s, c = s * s, r = REST_S[i], rx = r.x * swC + r.z * swS, rz = -r.x * swS + r.z * swC;
+    bodyXf(RIB_ROOT.x + b * ribC1.x + c * ribC2.x + wr * rx, RIB_ROOT.y + b * ribC1.y + c * ribC2.y + wr * r.y, RIB_ROOT.z + b * ribC1.z + c * ribC2.z + wr * rz + sway * s * s, ribT[i]).applyQuaternion(rig.quaternion);
+  }
+  rib.step(dt, ribT, TAIL.rate, 0.55, rm, TAIL.keep);
+  for (let i = 0; i < NR; i++) ribL[i].copy(rib.p[i]).applyQuaternion(rigInv);
+  for (let i = 0; i < NR; i++) { // a frame per link for the 2x2 clusters, the tie ring and the fan
+    ribD[i].subVectors(ribL[Math.min(i + 1, NR - 1)], ribL[Math.max(i - 1, 0)]).normalize();
+    ribU[i].crossVectors(ribD[i], UPX.set(0, 0, 1).applyQuaternion(bq)); if (ribU[i].lengthSq() < 0.05) ribU[i].crossVectors(ribD[i], UPY.set(1, 0, 0));
+    ribU[i].normalize(); ribV[i].crossVectors(ribD[i], ribU[i]).normalize();
+  }
+  for (let i = 0; i < 3; i++) bodyXf(CHARM_AT.x, CHARM_AT.y - (0.36 + 0.24 * i) * accK, CHARM_AT.z + 0.05, tasT[i]).applyQuaternion(rig.quaternion);
+  tassel.step(dt, tasT, 9, 0.5, rm);
+  // which eye/mouth patterns are on now
+  // [face] one lid value for blink, wake and the ignored half-blink at +0.4 s
+  const igU = state === 'ignored' ? clock - stateStart : -1, halfBlink = igU < 0 ? 0 : smooth(0.2, 0.26, igU) * (1 - smooth(1.34, 1.4, igU));
+  const lid = Math.min(bl, 1 - 0.5 * halfBlink); // wake swaps the pattern (closed curve) instead of lowering a lid
+  const eyeNm = [-1, 1].map(side => { const nm = eyeName(p.eyes, side); return wakeEyes < 1 ? 'sleep' : lid < 0.3 ? 'shut' : (EYES[nm] ? nm : 'open'); });
+  spk.env = p.ampSlow; const mp = mouthPat(p.mouth, rm ? p.amp * 0.5 : p.amp, t), lit = !!LIT_MOUTH[p.mouth], curve = MOUTH_CURVE[p.mouth] || 0;
+  faceCols();
+  const handUse = [p.hL.distanceTo(HAND_L), p.hR.distanceTo(HAND_R)].map(d => smooth(0.3, 0.9, d) * p.handVis);
+  // [face] eye wrap crossfade over 70-85 deg: that side's front pill wipes out from its outer edge, then the wrap sliver
+  // comes in, so at most 2 eyes ever show
+  const wrapW = [-1, 1].map(side => smooth(1.222, 1.484, -side * p.view) * (OPEN_LIKE[eyeNm[side < 0 ? 0 : 1]] ? 1 : 0));
+  const wrapVis = wrapW.map(w => smooth(0.5, 0.75, w));
+  const listenIris = false, offEye = p.offline > 0.5;
+  // eyes sit on one plane per eye at the most forward face point under them, so face cubes never poke through (no stipple)
+  const eyeZ = [-1, 1].map(side => { const cx = side * EYE_CX + eox, cy = EYE_CY + eoy, hw = 2.9 * FS * es, hh = 3.6 * FS * es * esy; let z = -9;
+    for (let a = -1; a <= 1; a += 0.5) for (let b = -1; b <= 1; b += 0.5) z = Math.max(z, faceZ(cx + a * hw, cy + b * hh)); return z; });
+
+  let kk = 0;
+  for (let i = 0; i < N; i++) {
+    const it = items[i];
+    let x, y, z, s = it.size, sx2 = 1, sy2 = 1, sz2 = 1, target = 1, q = bq, dyn = 0;
+    if (it.k === K.HAND) {
+      const hp = it.side < 0 ? p.hL : p.hR;
+      hq.setFromEuler(eul.set(0, 0, it.side * 0.3 + (rm ? 0 : 0.1 * Math.cos(TAU * tb / L)))); q = sq4.copy(bq).multiply(hq);
+      vP.set(-it.o[0] * it.side, it.o[1], it.o[2]).applyQuaternion(q);
+      x = hp.x * S + vP.x; y = hp.y * S + vP.y + XF.bodyY; z = hp.z * S + vP.z + XF.z;
+      target = handUse[it.side < 0 ? 0 : 1];
+    } else if (it.k === K.SAT) {
+      target = moteForm(it.idx, t, p, vP) * p.satVis * (1 - 0.6 * p.err); x = vP.x * S; y = vP.y + XF.bodyY * 0.6; z = vP.z * S;
+      q = gemQ; s *= moteSz * (1 + 0.3 * p.crown * (it.idx < 4 ? 0 : 0));
+      if (it.idx === 4 && waking && !rm && wu < 0.2) { // the wake spark at the centre of the hairline
+        bodyXf(0, (bangY(0) - 0.5 - (TIPS['0'] || 0)) * VS, faceZ(0, -0.1) + 0.02, vP); x = vP.x; y = vP.y; z = vP.z; target = 1; s = 0.2 * (0.4 + 0.6 * Math.sin(Math.PI * wu / 0.2)); // [light] on the hairline, never a dot on the fringe
+      }
+      B.x[i * 4 + 3] = 0;
+    } else if (it.k === K.RIB) {
+      // [hair] 2 strand columns per link, stretched along the chain; alternate links shift +-0.15 so it reads as one strand
+      const i2 = it.idx, a = ribL[i2], u = ribU[i2], d = ribD[i2], w = TAIL_W[i2];
+      const o = it.cn === 2 ? (it.q ? 0.25 : -0.25) * w : 0, ov = (i2 & 1 ? 1 : -1) * TAIL.alt * 0.5 * w;
+      const dd = i2 === NR - 1 ? 0.25 * TAIL.seg : 0;
+      const v2 = ribV[i2]; x = a.x + u.x * o + d.x * dd + v2.x * ov; y = a.y + u.y * o + d.y * dd + v2.y * ov; z = a.z + u.z * o + d.z * dd + v2.z * ov;
+      tailM.makeBasis(u, d, tailZ.copy(ribV[i2]).negate()); q = tailQ.setFromRotationMatrix(tailM);
+      sx2 = w * (it.cn === 2 ? 0.54 : 0.75) / s; sy2 = TAIL.seg * TAIL.ov / s; sz2 = w * 0.82 / s;
+    } else if (it.k === K.TIE) {
+      // [hair] a continuous 6-cube ring around the first link, each cube tangent to it
+      const a = ribL[1], b2 = ribL[2], u = ribU[1], v = ribV[1], d = ribD[1], r = TAIL_W[1] * 0.5 * 0.95, ring = it.q >= 6 ? 1 : 0, an = (it.q % 6) * TAU / 6, f2 = 0.05 + 0.3 * ring;
+      tailR.copy(u).multiplyScalar(Math.cos(an)).addScaledVector(v, Math.sin(an)); tailZ.crossVectors(d, tailR);
+      x = a.x + (b2.x - a.x) * f2 + tailR.x * r; y = a.y + (b2.y - a.y) * f2 + tailR.y * r; z = a.z + (b2.z - a.z) * f2 + tailR.z * r;
+      tailM.makeBasis(tailZ, d, tailR); q = tailQ.setFromRotationMatrix(tailM);
+      sx2 = 2 * Math.PI * r / 6 * 1.2 / s; sy2 = 0.28 * accK / s; sz2 = 0.16 / s; B.x[i * 4 + 3] = 0.8 * p.accent;
+    } else if (it.k === K.CHARM) {
+      if (it.tassel !== undefined) { vP.copy(tassel.p[it.tassel + 1]).applyQuaternion(rigInv); x = vP.x; y = vP.y; z = vP.z; }
+      else { bodyXf(CHARM_AT.x + it.o[0] * accK, CHARM_AT.y + it.o[1] * accK, CHARM_AT.z + it.o[2], vP); x = vP.x; y = vP.y; z = vP.z; q = diaQ; }
+      s *= accK; B.x[i * 4 + 3] = it.core ? (small ? 1 : 0.8) * p.accent : small ? 0.5 * p.accent : 0;
+    } else {
+      x = it.hx; y = it.hy; z = it.hz;
+      if (it.k === K.SHELL) {
+        if (it.sxy) { sx2 = it.jsx || it.sxy; sy2 = it.jsy || it.sxy; z += it.hzOff; if (it.sz) sz2 = it.sz; } // [light] jsx: a jaw tile clipped to the U
+        if (it.tq) { q = hairQ.copy(bq).multiply(it.tq); sx2 = it.hsx; sy2 = it.hsy; if (it.hsz) sz2 = it.hsz; if (it.gone) continue; } // [hair] crown dome tilt
+        if (it.fringe) y += p.fringeLift * 0.3 * VS; // [hair]
+        if (it.drop && p.err > 0.01) { y -= p.err * (1.2 + 0.4 * it.drop); target = 1 - smooth(0.2, 0.9, p.err); }
+      } else if (it.k === K.EYE) { // [face]
+        const si = it.side < 0 ? 0 : 1, nm = eyeNm[si], pat = EYES[nm], rows = pat.length, cols = pat[0].length;
+        const cx = it.side * EYE_CX, sy = es * esy;
+        let pc = it.c, pr = it.r;
+        if (it.lash) { const lw = LASH[nm]; target = lw && !offEye && wrapW[si] <= 0 ? 1 : 0; if (lw) { pc = lw[0]; pr = nm === 'shut' || lid >= 1 ? lw[1] : Math.max(lw[1], Math.ceil((1 - lid) * rows - 0.5) - 0.55); it.lpc = pc; it.lpr = pr; } else { pc = it.lpc ?? -0.4; pr = it.lpr ?? 0.45; } } // rides the lid; no entry: fade out in place
+        else {
+          if (it.r < rows && it.c < cols) { const cc = it.side > 0 ? cols - 1 - it.c : it.c; target = pat[it.r][cc] === '#' ? 1 : 0; } else target = 0;
+          if (lid < 1 && nm !== 'shut' && (it.r + 0.5) / rows < 1 - lid) target = 0; // eyelid comes down from the top
+          if (p.lowLid > 0.5 && rows === 6 && it.r === rows - 1) target = 0;      // lower-lid lift on stressed syllables
+          // wrap crossfade: this side's pill wipes out from its outer edge (at most 2 eyes visible)
+          if (wrapW[si] > 0 && ((it.side < 0 ? it.c : cols - 1 - it.c) + 0.5) / cols < 2 * wrapW[si]) target = 0;
+        }
+        const dc = it.lash ? pc : it.c; // lash cols are authored for the viewer-left eye: mirror for the other side
+        const colPos = it.side > 0 && it.lash ? cols - 1 - dc : dc;
+        x = cx + eox + (colPos - (cols - 1) / 2) * FS * es; y = EYE_CY + eoy + ((rows - 1) / 2 - pr + (EYE_DY[nm] || 0)) * FS * sy;
+        z = onFace(eyeZ[si], 0.05) - FS * es * it.flat * 0.5; s *= es; sx2 = 1.18; sy2 = esy * 1.18; sz2 = it.flat; // welded; one depth per colour hides every bevel
+        if (it.lash) { sx2 = 0.85; sy2 = esy * 0.7; }
+        const ir = IRIS[nm], bot = ir && it.r === ir[1] && !it.lash, mid = ir && it.r === ir[0] && ir[0] !== ir[1] && !listenIris && !it.lash;
+        z -= bot ? 0.004 : mid ? 0.002 : 0;
+        dyn = 1;
+        if (offEye) { const c = FC.eyeOff; W.lit[0] = c.r; W.lit[1] = c.g; W.lit[2] = c.b; W.shd[0] = c.r * 0.85; W.shd[1] = c.g * 0.85; W.shd[2] = c.b * 0.85; }
+        else {
+          const lc = bot ? COL.irisLit : COL.eyeLit, sc2 = bot ? COL.irisShd : COL.eyeShd, k = mid ? 0.5 : 0;
+          W.lit[0] = lc.r + (COL.irisLit.r - lc.r) * k; W.lit[1] = lc.g + (COL.irisLit.g - lc.g) * k; W.lit[2] = lc.b + (COL.irisLit.b - lc.b) * k;
+          W.shd[0] = sc2.r + (COL.irisShd.r - sc2.r) * k; W.shd[1] = sc2.g + (COL.irisShd.g - sc2.g) * k; W.shd[2] = sc2.b + (COL.irisShd.b - sc2.b) * k;
+        }
+      } else if (it.k === K.CATCH) { // [face]
+        const si = it.side < 0 ? 0 : 1, nm = eyeNm[si], lay = CATCHES[nm], pat = EYES[nm], rows = pat.length, cols = pat[0].length;
+        if (lay && it.q < lay.length && lid > 0.8 && wrapW[si] < 0.05 && !offEye) {
+          const [c, r, sc3] = lay[it.q];
+          x = it.side * EYE_CX + eox + (c - (cols - 1) / 2) * FS * es; y = EYE_CY + eoy + ((rows - 1) / 2 - r + (EYE_DY[nm] || 0)) * FS * es * esy; s *= es * sc3;
+          sx2 = sc3 < 1 ? 1 : 1.18; sy2 = esy;
+        } else { target = 0; x = it.side * EYE_CX; y = EYE_CY; }
+        z = onFace(eyeZ[si], 0.068) - s * it.flat * 0.5; sz2 = it.flat;
+        dyn = 1; const c = FC.catchLit; W.lit[0] = c.r; W.lit[1] = c.g; W.lit[2] = c.b; W.shd[0] = c.r; W.shd[1] = c.g; W.shd[2] = c.b;
+      } else if (it.k === K.WRAP) { // [face]
+        target = (lid > 0.5 && (it.c + 0.5) / 2 < 2 * wrapVis[it.side < 0 ? 0 : 1] - 0.0) ? 1 : 0; sx2 = it.thin; sy2 = 1.2; sz2 = 1.2; // welded
+        dyn = 1; W.lit[0] = COL.eyeLit.r; W.lit[1] = COL.eyeLit.g; W.lit[2] = COL.eyeLit.b; W.shd[0] = COL.eyeShd.r; W.shd[1] = COL.eyeShd.g; W.shd[2] = COL.eyeShd.b;
+      } else if (it.k === K.MOUTH) { // [face] flush in the skin plane, welded, flat colour; ao 1, no edge, no bounce
+        const ch = mp[it.r][it.c];
+        target = ch !== '.' ? 1 : 0; x = (it.c - 3) * MS + eox * 0.3; y = MOUTH_Y - (it.r + 0.5) * MS; sz2 = 0.12; // MOUTH_Y = the mouth's top edge
+        if (curve) y += curve * MS * smooth(0.5, 1.5, Math.abs(it.c - 3));
+        if (ch === 'G' || ch === 'D') y -= 0.5 * MS; // [face] ring sides span two rows, the ring bottom three columns (one cube each)
+        if (ch === 'U') y += 0.5 * MS; // [face] grin corner: rows -1 and 0, so the lifted corner stays welded to the top row
+        z = onFace(Math.max(faceZ(0, MOUTH_Y - 0.3), faceZ(x, y)), 0.04) - MS * 0.06 - (ch === 'l' ? 0.004 : ch === 'r' || ch === 'g' || ch === 'G' || ch === 'W' ? 0.002 : 0); sx2 = ch === 'W' ? 3.18 : 1.18; sy2 = ch === 'G' || ch === 'U' || ch === 'D' ? 2.18 : 1.18; dyn = 1;
+        const c = ch === 'l' ? COL.mouthGlow : ch === 'r' ? FC.mouthRose : ch === 'g' || ch === 'G' || ch === 'W' ? FC.mouthRing : ch === 'f' ? FC.mouthOff : ch === 'n' ? FC.mouthFlat : lit ? COL.mouthLit : COL.mouthSoft;
+        W.lit[0] = c.r; W.lit[1] = c.g; W.lit[2] = c.b; W.shd[0] = c.r; W.shd[1] = c.g; W.shd[2] = c.b;
+        if (ch === 'l') { B.fx[i * 4 + 1] = 1; B.x[i * 4 + 3] = -1; } else { B.fx[i * 4 + 1] = 0; B.x[i * 4 + 3] = 0; }
+      } else if (it.k === K.BLUSH) {
+        const b0 = clamp(p.blushBase + 0.65 * p.blush, 0, 1), b = b0 * it.bk;
+        tmpC.copy(COL.skinLit).lerp(COL.blush, b); tmpC2.copy(COL.skinShd).lerp(COL.blush, b * 0.85); dyn = 1;
+        if (it.spark) { tmpC.copy(FC.sparkle); tmpC2.copy(FC.sparkle); }
+        W.lit[0] = tmpC.r; W.lit[1] = tmpC.g; W.lit[2] = tmpC.b; W.shd[0] = tmpC2.r; W.shd[1] = tmpC2.g; W.shd[2] = tmpC2.b;
+        const bx = it.bcx ?? x; // [face] one plane per cheek oval (no slits between its columns at 3/4)
+        z = onFace(Math.max(faceZ(bx - 0.5, y), faceZ(bx, y), faceZ(bx + 0.5, y)), 0.012) - it.size * it.flat * 0.5; sx2 = it.sx || 1; sy2 = it.sy; sz2 = it.flat; target = (1 - p.offline) * (b0 > 0.02 ? 1 : 0); // one plane per row: no gaps
+        if (it.spark) { target *= p.sparkle > 0.5 ? 1 : 0; z = onFace(Math.max(faceZ(bx - 0.5, y), faceZ(bx, y), faceZ(bx + 0.5, y)), 0.02) - it.size * it.flat * 0.5; }
+      }
+      bodyXf(x, y, z, vP); x = vP.x; y = vP.y; z = vP.z;
+    }
+    if (it.k === K.MOUTH) it.vis = target; // [face] round 6: the whole mouth pattern swaps on one frame, cells at full size
+    else if (it.k === K.EYE || it.k === K.CATCH) visSpring(it, target, dt, canonical);
+    else it.vis += (target - it.vis) * (canonical ? 1 - Math.exp(-22 * Math.max(dt, 1e-4)) : damp(it.k === K.HAND ? 20 : 18, dt));
+    let sc = s * clamp(it.vis, 0, 1.3);
+    if (it.k === K.EYE || it.k === K.CATCH || it.k === K.WRAP) sc = it.vis < 0.5 ? 0 : s * clamp(it.vis, 1, 1.15); // [face] no shrunken (stippled) eye pixels
+    else if (it.k === K.MOUTH) sc = it.vis < 0.5 ? 0 : s; // [face] no scale tween, no overshoot
+    if (sc < 0.004) continue;
+    m4.compose(vP.set(x, y, z), q, vS.set(sc * sx2, sc * sy2, sc * sz2));
+    m4.toArray(IM, kk * 16);
+    A.n.array.set(B.n.subarray(i * 3, i * 3 + 3), kk * 3);
+    if (dyn) { A.lit.array.set(W.lit, kk * 3); A.shd.array.set(W.shd, kk * 3); }
+    else { A.lit.array.set(B.lit.subarray(i * 3, i * 3 + 3), kk * 3); A.shd.array.set(B.shd.subarray(i * 3, i * 3 + 3), kk * 3); }
+    A.fx.array.set(B.fx.subarray(i * 4, i * 4 + 4), kk * 4); A.x.array.set(B.x.subarray(i * 4, i * 4 + 4), kk * 4); A.y.array.set(B.y.subarray(i * 4, i * 4 + 4), kk * 4);
+    kk++;
+  }
+  vox.count = kk; outline.count = kk;
+  vox.instanceMatrix.needsUpdate = true; for (const k in A) A[k].needsUpdate = true;
+  // inner light body follows the shell
+  bodyXf(0, INNER_Y, 0, inner.position); inner.quaternion.copy(bq);
+  inner.scale.set(INNER_R[0] * XF.sxz * S, INNER_R[1] * XF.sy * S, INNER_R[2] * XF.sxz * S);
+  const li = clamp(p.light + p.glow, 0, 1.2) * GLOW * p.dim * wakeLight;
+  uniforms.uLight.value.copy(p.tint); uniforms.uLightI.value = li;
+  const hk = clamp(p.hairK + 0.4 * p.glow, 0, 1) * p.dim * wakeLight;
+  uniforms.uHairK.value = hk; uniforms.uHairOn.value = (hairlineOn ? 1 : 0) * clamp(hk * 4, 0, 1);
+  uniforms.uPartK.value = 0.62 + 1.25 * li; uniforms.uTrCap.value = LIGHTS.idle[1] * GLOW * 1.3;
+  uniforms.uWake.value = waking && !rm ? -1.3 + 2.6 * smooth(0.08, 0.42, wu) / 1 : 9;
+  uniforms.uDesat.value = p.desat; uniforms.uAccFloor.value = 0.45 * p.accent; uniforms.uSkinK.value = 1 - 0.52 * clamp(p.offline, 0, 1); // linear: L* 96 -> ~74 (sRGB value -25 %)
+  uniforms.uScan.value = p.think * GLOW; uniforms.uScanY.value = -4.5 + ((t * 0.5) % 1) * 10;
+  if (TH.name === 'clear') uniforms.uRimCol.value.copy(COL.rimCol).lerp(p.tint, small ? 0.45 : 0.3);
+  // [light] idle glint: every 9-14 s a cream glint crosses the hair highlight band in 0.8 s (off <= 180 px, reduced motion, exports)
+  if (canonical || rm || small || state !== 'idle') { if (!canonical && t > glint.next - 2) glint.next = t + 2; }
+  else if (t > glint.next) { glint.t0 = t; glint.next = t + 9 + 5 * Math.random(); }
+  const gu = (t - glint.t0) / 0.8; uniforms.uGlint.value = !canonical && gu >= 0 && gu < 1 ? -1.5 + 3.0 * gu : 9;
+  halo.material.uniforms.uColor.value.copy(p.tint);
+  halo.material.uniforms.uAlpha.value = TH.haloA * p.halo * clamp(li * 1.6, 0, 1) * (1 - p.offline * 0.8);
+  halo.scale.setScalar(glowMode === 'bloom' ? 1.15 : 1); halo.position.y = 0.3 + XF.bodyY * 0.8;
+  floor.material.uniforms.uColor.value.copy(TH.floorAdd ? p.tint : tmpC.set('#120A1E'));
+  floor.scale.set(1 - 0.08 * (XF.bodyY + 1), 1, 1);
+  floor.material.uniforms.uAlpha.value = TH.floorA * clamp(1 - XF.bodyY * 0.15, 0.4, 1.4) * (TH.floorAdd ? clamp(li * 2, 0.2, 1) : 1);
+}
+// ---------------------------------------------------------------- inputs
+const lvl = $('#lvl'), lvlv = $('#lvlv');
+lvl.addEventListener('input', () => { lvlv.textContent = (+lvl.value).toFixed(2); });
+const mic = { on: false, ctx: null, an: null, buf: null, stream: null, level: 0 };
+async function toggleMic() {
+  const btn = $('#mic'), note = $('#micnote');
+  if (mic.on) {
+    mic.stream.getTracks().forEach(t => t.stop()); mic.ctx.close(); mic.on = false;
+    btn.setAttribute('aria-pressed', 'false'); btn.textContent = 'Use microphone'; lvl.disabled = false; note.textContent = ''; return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { note.textContent = 'Microphone needs https or localhost.'; note.className = 'note warn'; return; }
+  try {
+    mic.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    mic.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = mic.ctx.createMediaStreamSource(mic.stream);
+    mic.an = mic.ctx.createAnalyser(); mic.an.fftSize = 1024; src.connect(mic.an);
+    mic.buf = new Float32Array(mic.an.fftSize); mic.on = true;
+    btn.setAttribute('aria-pressed', 'true'); btn.textContent = 'Microphone on'; lvl.disabled = true;
+    note.className = 'note'; note.textContent = 'Live level drives Listening.';
+    if (state !== 'listening') setState('listening');
+  } catch (e) { note.textContent = 'Mic unavailable: ' + (e.name || e.message); note.className = 'note warn'; }
+}
+$('#mic').addEventListener('click', toggleMic);
+// followers are dt-based (attack ~25 ms, release ~130 ms for the mic; ~18 / ~60 ms for TTS), so they behave the same at any frame rate
+const follow = (cur, v, up, down, dt) => cur + (v - cur) * damp(v > cur ? up : down, dt);
+function micLevel(t, dt) {
+  if (ext.mic !== null) { mic.level = follow(mic.level, ext.mic, 42, 7.7, dt); return mic.level; }
+  if (mic.on) {
+    mic.an.getFloatTimeDomainData(mic.buf);
+    let s = 0; for (let i = 0; i < mic.buf.length; i++) s += mic.buf[i] * mic.buf[i];
+    const db = 20 * Math.log10(Math.sqrt(s / mic.buf.length) + 1e-8);
+    const v = clamp((db + 58) / 45, 0, 1);
+    mic.level = follow(mic.level, v, 42, 7.7, dt);
+    lvl.value = mic.level; lvlv.textContent = mic.level.toFixed(2);
+    return mic.level;
+  }
+  const b = +lvl.value; return clamp(b * (0.82 + 0.18 * Math.sin(t * 7.3) * Math.sin(t * 2.1 + 1)), 0, 1);
+}
+// synthetic TTS amplitude: syllables (110–250 ms) grouped into words and sentences with pauses
+const tts = { sylStart: 0, sylDur: 0, peak: 0, gapUntil: 0, sylLeft: 0, wordsLeft: 0, val: 0 };
+function ttsAmp(t, active, dt) {
+  if (ext.tts !== null) { const v = active ? ext.tts : 0; tts.val = follow(tts.val, v, 55, 17, dt); return tts.val; }
+  let target = 0;
+  if (active) {
+    if (t >= tts.sylStart + tts.sylDur && t >= tts.gapUntil) {
+      if (--tts.sylLeft <= 0) {
+        tts.sylLeft = 1 + Math.floor(Math.random() * 3); let gap = 0.06 + Math.random() * 0.12;
+        if (--tts.wordsLeft <= 0) { tts.wordsLeft = 4 + Math.floor(Math.random() * 7); gap = 0.55 + Math.random() * 0.5; }
+        tts.gapUntil = t + gap;
+      }
+      tts.sylStart = Math.max(t, tts.gapUntil); tts.sylDur = 0.11 + Math.random() * 0.14; tts.peak = 0.4 + Math.random() * 0.6;
+    }
+    if (t >= tts.sylStart) { const u = clamp((t - tts.sylStart) / tts.sylDur, 0, 1); target = tts.peak * Math.pow(Math.sin(Math.PI * u), 0.6) * (0.85 + 0.15 * Math.sin(t * 90)); }
+  }
+  tts.val = follow(tts.val, target, 55, 17, dt);
+  return tts.val;
+}
+// gaze
+const gaze = { x: 0, y: 0, tx: 0, ty: 0, last: -10, wanderAt: 0 };
+function pointerTo(e) {
+  const r = stageEl.getBoundingClientRect();
+  gaze.tx = clamp(((e.clientX - r.left) / r.width) * 2 - 1, -1.3, 1.3);
+  gaze.ty = clamp(-(((e.clientY - r.top) / r.height) * 2 - 1), -1.3, 1.3);
+  gaze.last = clock;
+}
+window.addEventListener('pointermove', pointerTo, { passive: true });
+canvas.addEventListener('pointerdown', e => { pointerTo(e); poke(); });
+let pokeAt = -10;
+function poke() {
+  pokeAt = clock;
+  bump();
+  if (state === 'sleeping') setState('idle'); // plays the wake moment
+  else if (state === 'offline' || state === 'error') triggerReaction(liveReactions, 'shake', clock);
+  else triggerReaction(liveReactions, Math.random() < 0.5 ? 'happy' : 'shy', clock);
+}
+// blink + curiosity
+const blink = { next: 2, start: -1, dbl: false, off: false, onset: -10 };
+let curious = { next: 6, start: -10, dir: 1, amp: 0.17 };
+function blinkValue(t) {
+  if (blink.off) return 1;
+  if (t > blink.next) { blink.start = t; blink.dbl = Math.random() < 0.2; blink.next = t + 2.2 + Math.random() * 4 * (car ? 1.8 : 1); }
+  const u = t - blink.start;
+  if (u >= 0 && u < 0.15) return 1 - Math.sin(Math.PI * u / 0.15);
+  if (blink.dbl && u >= 0.22 && u < 0.37) return 1 - Math.sin(Math.PI * (u - 0.22) / 0.15);
+  return 1;
+}
+
+// ---------------------------------------------------------------- UI
+function setState(s) {
+  const prev = state; state = s; stateStart = clock; bump();
+  if (s !== prev && s !== 'sleeping' && s !== 'offline' && (s === 'interrupted' || clock - blink.onset >= 0.8)) { blink.next = Math.min(blink.next, clock); blink.onset = clock; } // onset cue within a frame, never closer than 0.8 s (barge-in always blinks)
+  if (s === 'interrupted') for (const it of items) if (it.k === K.MOUTH) { it.vis = MOUTHS.shut[it.r][it.c] === '#' ? 1 : 0; it.vv = 0; } // [face] snaps to the closed dark 3x1 on this frame
+  if (prev === 'sleeping' && s === 'idle') triggerReaction(liveReactions, 'wake', clock);
+  document.querySelectorAll('#states button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === s)));
+  $('#lbl').textContent = STATE_LABEL[s] || s;
+  $('#desc').textContent = (car ? 'Car mode: calm overlay, no orbiters or gaze. ' : '') + STATES[s];
+}
+function chipGroup(el, values, onPick, labels) {
+  for (const v of values) {
+    const b = document.createElement('button'); b.dataset.v = v; b.textContent = (labels && labels[v]) || v.replace('_', ' ');
+    b.setAttribute('aria-pressed', 'false'); b.addEventListener('click', () => onPick(v, b)); el.appendChild(b);
+  }
+}
+chipGroup($('#states'), Object.keys(STATES), v => { stopDemo(); setState(v); }, STATE_LABEL);
+chipGroup($('#emotions'), ['none', 'happy', 'confused', 'apologetic'], v => { stopDemo(); setEmotion(v); });
+function setEmotion(v) { emotion = v; document.querySelectorAll('#emotions button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === v))); $('#lbl2').textContent = v === 'none' ? '' : '· ' + v; }
+const rEl = $('#reactions');
+for (const name of REACTION_NAMES) {
+  const b = document.createElement('button'); b.className = 'react'; b.textContent = name.replace('_', ' '); b.title = REACTIONS[name].desc;
+  b.addEventListener('click', () => {
+    triggerReaction(liveReactions, name, clock);
+    $('#desc').textContent = name.replace('_', ' ') + ': ' + REACTIONS[name].desc;
+    b.classList.add('flash'); setTimeout(() => b.classList.remove('flash'), 250);
+  });
+  rEl.appendChild(b);
+}
+$('#car').addEventListener('click', e => { car = !car; e.currentTarget.setAttribute('aria-pressed', String(car)); setState(state); });
+chipGroup($('#glow'), ['bloom', 'cheap'], v => { glowMode = v; syncDisplayChips(); }, { bloom: 'Glow: halo+', cheap: 'Glow: normal' });
+chipGroup($('#theme'), ['auto', 'light', 'dark'], v => {
+  if (v === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v;
+  applyTheme(v === 'auto' ? themeName() : v); syncDisplayChips();
+}, { auto: 'Theme: auto', light: 'Light', dark: 'Dark' });
+function syncDisplayChips() {
+  document.querySelectorAll('#glow button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === glowMode)));
+  const tv = document.documentElement.dataset.theme || 'auto';
+  document.querySelectorAll('#theme button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === tv)));
+}
+
+// auto demo
+const DEMO = [['idle', 'none', 3.5], ['listening', 'none', 4], ['thinking', 'none', 3.5], ['speaking', 'none', 3], ['speaking', 'none', 2.5, 'nod'],
+  ['speaking', 'happy', 4, 'laugh'], ['interrupted', 'none', 2.5], ['ignored', 'none', 3], ['idle', 'confused', 3.5], ['speaking', 'apologetic', 4, 'sad'],
+  ['idle', 'none', 2.5, 'wave'], ['idle', 'none', 3, 'celebrate'], ['notowner', 'none', 4], ['error', 'none', 3.5], ['offline', 'none', 3.5], ['sleeping', 'none', 4.5]];
+let demo = { on: false, i: 0, next: 0 };
+function stopDemo() { demo.on = false; $('#demo').setAttribute('aria-pressed', 'false'); }
+$('#demo').addEventListener('click', () => { demo.on = !demo.on; demo.i = 0; demo.next = clock; $('#demo').setAttribute('aria-pressed', String(demo.on)); });
+function demoStep(t) {
+  if (!demo.on || t < demo.next) return;
+  const d = DEMO[demo.i % DEMO.length]; demo.i++;
+  setEmotion(d[1]); setState(d[0]); if (d[3]) setTimeout(() => triggerReaction(liveReactions, d[3], clock), 500);
+  demo.next = t + d[2];
+}
+
+// ---------------------------------------------------------------- live loop
+let clock = 0, last = performance.now(), exporting = false;
+let fpsAcc = 0, fpsN = 0, fpsT = 0;
+// frame-rate tiers: 60 listening/speaking, 30 idle/notowner/ignored/thinking (car idle too), 20 overlay idle, error 60 for 3 s
+// then 20, 10 sleeping/offline; any input, state change or reaction jumps back to 60 for 2.5 s. setFrameRate(n) pins a cap (0 = automatic).
+let fpsCap = 0, boostUntil = 0, ampSlow = 0, intrAt = -1;
+function bump() { boostUntil = clock + 2.5; }
+function autoFps(settled) { // settled: the tier with the demo off and > 2.6 s after the last input (stats().fps, the bench)
+  if (!settled && (clock < boostUntil || rot.held || demo.on)) return 60;
+  if (liveReactions.length) return 60;
+  if (state === 'sleeping' || state === 'offline') return 10;
+  if (state === 'error') return clock - stateStart < 3 ? 60 : 20;
+  if (CLEAR && state === 'idle') return 20;
+  if (state === 'thinking' || state === 'idle' || state === 'notowner' || state === 'ignored') return 30;
+  return 60;
+}
+function liveStep(dt) {
+  const t = clock;
+  stepRotation(dt);
+  demoStep(t);
+  if (state === 'interrupted' && t - stateStart > 0.7) setState(pose.mic > 0.15 || ext.base === 'interrupted' ? 'listening' : ext.base); // [face] she is talking: listen
+  if (state === 'ignored' && t - stateStart > 2.4) setState(ext.base === 'ignored' ? 'idle' : ext.base);
+  const m = micLevel(t, dt), a = ttsAmp(t, state === 'speaking', dt);
+  ampSlow = follow(ampSlow, state === 'speaking' ? a : 0, 1 / 0.06, 1 / 0.4, dt); // phrase envelope: 60 ms attack, 400 ms release
+  const fm = stateTargets(t, m, a, ampSlow);
+  const rm = reduced();
+  if (state === 'idle' && !car && !rm) { // curious tilt; the overlay gets a rarer, smaller one (<= 4 deg every 20-40 s)
+    if (t > curious.next) { curious.start = t; curious.dir = Math.random() < 0.5 ? -1 : 1; curious.amp = CLEAR ? 0.07 : 0.17; curious.next = t + (CLEAR ? 20 + Math.random() * 20 : 6 + Math.random() * 6); }
+    const cu = t - curious.start; T.roll += curious.dir * curious.amp * smooth(0, 0.4, cu) * (1 - smooth(1.4, 1.9, cu));
+  }
+  const pu = t - pokeAt; if (pu < 0.9 && !rm) T.sq += -0.16 * Math.exp(-pu * 5) * Math.cos(pu * 18);
+  for (const k in BASE) P[k] += (T[k] - P[k]) * damp(rm ? 15 : (FAST[k] || 6), dt);
+  if (state === 'interrupted') { // [light] the ear arc attacks in 120 ms (>= 70 % by +0.2 s); the voice motes die on the interrupt frame
+    P.ear = Math.max(P.ear, smooth(0, 0.12, t - stateStart));
+    if (intrAt !== stateStart) { intrAt = stateStart; P.voice = 0; for (const it of items) if (it.k === K.SAT) it.vis = 0; }
+  }
+  const burst = state === 'thinking' && t - stateStart > 4 && ((t - stateStart - 4) % 4) < 0.6;
+  if (!rm) crownAng += dt * TAU * 0.5 * (burst ? 3 : 1);
+  lightCur.lerp(lightTarget, damp(12, dt));
+  hLcur.lerp(hLt, damp(7, dt)); hRcur.lerp(hRt, damp(7, dt));
+  // gaze: pointer if recent, otherwise wander
+  let gx = gaze.tx, gy = gaze.ty;
+  const touched = Math.max(pokeAt, rot.touch, CLEAR ? -1e9 : gaze.last);
+  if (t - gaze.last > 2.5 && !(CLEAR && t - touched > 10) && !rm) {
+    if (t > gaze.wanderAt) { gaze.wx = (Math.random() - 0.5) * 1.2; gaze.wy = (Math.random() - 0.5) * 0.7; gaze.wanderAt = t + 1.5 + Math.random() * 2.5; }
+    gx = gaze.wx || 0; gy = gaze.wy || 0;
+  }
+  if (CLEAR && t - gaze.last > 2.5 && t - touched > 10) { gx = 0; gy = 0; }
+  gaze.x += (gx * P.follow - gaze.x) * damp(5, dt); gaze.y += (gy * P.follow - gaze.y) * damp(5, dt);
+  Object.assign(pose, P);
+  pose.tint.copy(lightCur); pose.hL.copy(hLcur); pose.hR.copy(hRcur);
+  pose.yaw += gaze.x * 0.36; pose.pitch -= gaze.y * 0.16; pose.roll -= gaze.x * 0.04;
+  pose.eyeX += gaze.x * 0.9; pose.eyeY += gaze.y * 0.9;
+  // when dragged around, her eyes slide toward the visible edge to keep looking at you
+  const yawN = Math.atan2(Math.sin(rot.yaw), Math.cos(rot.yaw));
+  pose.eyeX += clamp(-yawN / 1.2, -1, 1) * 0.9;
+  pose.view = yawN + pose.yaw;
+  pose.eyes = fm.eyes; pose.mouth = fm.mouth; pose.mic = m; pose.amp = car ? 0 : a; pose.ampSlow = car ? 0 : ampSlow;
+  pose.blink = (state === 'sleeping' || state === 'offline') ? 1 : blinkValue(t);
+  applyReactions(liveReactions, pose, t, car ? 0.4 : 1);
+  writeInstances(t, t, dt, false);
+  $('#mMic').style.width = (m * 100).toFixed(0) + '%'; $('#mTts').style.width = (a * 100).toFixed(0) + '%';
+}
+function render() {
+  renderer.info.reset();
+  renderer.render(scene, camera);
+}
+function loop(now) {
+  if (ext.paused) return;
+  requestAnimationFrame(loop);
+  if (exporting) return;
+  if (now - last < 1000 / (fpsCap || autoFps()) - 2) return;
+  const dt = Math.min(0.12, (now - last) / 1000); last = now; clock += dt;
+  liveStep(dt); render();
+  fpsAcc += dt; fpsN++; fpsT += dt;
+  if (fpsT > 0.5) {
+    const fps = fpsN / fpsAcc;
+    $('#fps').textContent = fps.toFixed(0) + ' fps · ' + vox.count + '/' + N + ' cubes · ' + renderer.info.render.calls + ' draws';
+    $('#perfnote').textContent = 'DPR ' + dpr + ' · theme ' + TH.name;
+    fpsAcc = 0; fpsN = 0; fpsT = 0;
+  }
+}
+
+// ---------------------------------------------------------------- export (canonical clips)
+const clipSel = $('#clip');
+for (const v of ['idle_loop'].concat(REACTION_NAMES)) { const o = document.createElement('option'); o.value = v; o.textContent = v; clipSel.appendChild(o); }
+function canonicalPose() {
+  Object.assign(pose, BASE);
+  pose.tint.set(LIGHTS.idle[0]); pose.hL.copy(HAND_L); pose.hR.copy(HAND_R);
+  pose.eyes = 'open'; pose.mouth = 'soft'; pose.blink = 1; pose.mic = 0; pose.amp = 0; pose.ampSlow = 0; pose.view = 0; pose.wake = -1;
+  pose.fIdle = 0;
+}
+function canonicalVis() {
+  canonicalPose();
+  for (const it of items) {
+    it.vv = 0;
+    if (it.k === K.EYE) it.vis = it.r < 6 && it.c < 5 && EYES.open[it.r][it.side > 0 ? 4 - it.c : it.c] === '#' ? 1 : 0;
+    else if (it.k === K.CATCH) it.vis = it.q < CATCHES.open.length ? 1 : 0;
+    else if (it.k === K.MOUTH) it.vis = MOUTHS.soft[it.r][it.c] === '#' ? 1 : 0;
+    else if (it.k === K.HAND || it.k === K.SAT || it.k === K.WRAP) it.vis = 0; else it.vis = 1;
+  }
+  rib.init = false; tassel.init = false;
+}
+async function exportClip(name, S, fps, download) {
+  const SUB = 4, dtSub = 1 / (fps * SUB);
+  const dur = name === 'idle_loop' ? L : REACTIONS[name].d;
+  const frames = name === 'idle_loop' ? Math.round(L * fps) : Math.round(dur * fps) + 1; // reactions include both canonical endpoints
+  const cols = Math.min(8, frames), rows = Math.ceil(frames / cols);
+  const sheet = document.createElement('canvas'); sheet.width = cols * S; sheet.height = rows * S;
+  const ctx = sheet.getContext('2d', { willReadFrequently: true });
+  const list = [];
+  canonicalVis();
+  if (name !== 'idle_loop') triggerReaction(list, name, 0);
+  let tSim = 0;
+  for (let f = 0; f < frames; f++) {
+    const tF = f / fps;
+    while (tSim < tF - 1e-6) { stepCanon(name, list, tSim, dtSub); tSim += dtSub; }
+    stepCanon(name, list, tF, 0);
+    render();
+    ctx.drawImage(renderer.domElement, (f % cols) * S, Math.floor(f / cols) * S, S, S);
+    if (f % 8 === 7) await new Promise(r => setTimeout(r, 0));
+  }
+  let seam = null;
+  if (name !== 'idle_loop') {
+    const a = ctx.getImageData(0, 0, S, S).data, lf = frames - 1;
+    const b = ctx.getImageData((lf % cols) * S, Math.floor(lf / cols) * S, S, S).data;
+    let mx = 0; for (let i = 0; i < a.length; i += 4) mx = Math.max(mx, Math.abs(a[i] - b[i]), Math.abs(a[i + 1] - b[i + 1]), Math.abs(a[i + 2] - b[i + 2]));
+    seam = mx;
+  }
+  const blob = await new Promise(r => sheet.toBlob(r, 'image/png'));
+  const fname = `laura_${name}_${S}px_${fps}fps_${frames}f_${cols}x${rows}.png`;
+  if (download) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+  return { name, file: fname, size: S, fps, frames, cols, rows, loop: name === 'idle_loop', durationMs: Math.round(frames / fps * 1000), bytes: blob.size, seamMaxDiff: seam, sheet };
+}
+function stepCanon(name, list, t, dt) {
+  canonicalPose();
+  if (name === 'idle_loop') {
+    const u = t - L * 0.55; pose.blink = (u >= 0 && u < 0.15) ? 1 - Math.sin(Math.PI * u / 0.15) : 1;
+    writeInstances(t, t, dt, true);
+  } else {
+    applyReactions(list, pose, t, 1);
+    writeInstances(t, 0, dt, true); // idle base frozen at loop phase 0 (zero velocity there: all base oscillators are cosines)
+  }
+}
+async function runExport(names) {
+  if (exporting) return;
+  const S = +$('#size').value, fps = +$('#efps').value, note = $('#expnote');
+  exporting = true;
+  const prevTheme = TH.name;
+  applyTheme('dark', '#000000'); // OLED watch: true black background
+  renderer.setPixelRatio(1); renderer.setSize(S, S, false); frame(S, S);
+  const manifest = { canonical: 'idle_loop frame 0', idleLoopSeconds: L, background: '#000000', clips: [] };
+  let lastRes = null;
+  try {
+    for (const n of names) {
+      note.textContent = 'Rendering ' + n + '…';
+      lastRes = await exportClip(n, S, fps, true);
+      const { sheet, ...meta } = lastRes; manifest.clips.push(meta);
+      await new Promise(r => setTimeout(r, 350));
+    }
+    if (names.length > 1) {
+      const b = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'laura_clips_manifest.json'; a.click();
+    }
+    const tot = manifest.clips.reduce((s, c) => s + c.bytes, 0);
+    note.textContent = names.length === 1
+      ? `${lastRes.file}: ${lastRes.frames} frames, ${(lastRes.bytes / 1024).toFixed(0)} KB PNG` + (lastRes.seamMaxDiff === null ? ' (loop)' : `, seam max channel diff ${lastRes.seamMaxDiff}/255`)
+      : `${names.length} clips, ${(tot / 1024).toFixed(0)} KB PNG total; worst seam diff ${Math.max(0, ...manifest.clips.map(c => c.seamMaxDiff || 0))}/255. Manifest downloaded.`;
+    previewSheet(lastRes);
+  } catch (e) { note.textContent = 'Export failed: ' + e.message; }
+  canonicalVis();
+  applyTheme(prevTheme); resize(); exporting = false; last = performance.now();
+}
+let prevTimer = 0;
+function previewSheet(r) {
+  const pc = $('#preview'), px = pc.getContext('2d'); clearInterval(prevTimer);
+  let f = 0;
+  prevTimer = setInterval(() => {
+    px.clearRect(0, 0, 256, 256);
+    px.drawImage(r.sheet, (f % r.cols) * r.size, Math.floor(f / r.cols) * r.size, r.size, r.size, 0, 0, 256, 256);
+    f = (f + 1) % r.frames;
+  }, 1000 / r.fps);
+}
+$('#exp1').addEventListener('click', () => runExport([clipSel.value]));
+$('#expAll').addEventListener('click', () => runExport(['idle_loop'].concat(REACTION_NAMES)));
+
+// ---------------------------------------------------------------- go
+applyTheme(themeName());
+syncDisplayChips(); setEmotion('none'); setState('idle'); resize();
+if (QS.get('wake') !== '0') triggerReaction(liveReactions, 'wake', 0); // first appearance
+requestAnimationFrame(loop);
+// render-sheet helper: union bounds (rig space) of every state and reaction, used to fit the camera (FB)
+function measureBounds() {
+  const bb = { x0: 1e9, x1: -1e9, y0: 1e9, y1: -1e9, z0: 1e9, z1: -1e9 }, dt = 1 / 30, save = { state, clock };
+  const acc = () => { const a = vox.instanceMatrix.array;
+    for (let k = 0; k < vox.count; k++) { const o = k * 16, h = 0.5 * Math.hypot(a[o], a[o + 1], a[o + 2]);
+      bb.x0 = Math.min(bb.x0, a[o + 12] - h); bb.x1 = Math.max(bb.x1, a[o + 12] + h); bb.y0 = Math.min(bb.y0, a[o + 13] - h); bb.y1 = Math.max(bb.y1, a[o + 13] + h);
+      bb.z0 = Math.min(bb.z0, a[o + 14] - h); bb.z1 = Math.max(bb.z1, a[o + 14] + h); } };
+  rot.held = true; rot.yaw = 0; rot.pitch = 0; rot.vy = 0;
+  const per = {};
+  const run = (secs, setup, nm) => { liveReactions.length = 0; setup(); const b0 = JSON.stringify(bb); for (const k in bb) bb[k] = k[1] === '0' ? 1e9 : -1e9;
+    for (let f = 0; f < secs * 30; f++) { clock += dt; liveStep(dt); acc(); }
+    per[nm] = [bb.x0, bb.x1, bb.y0, bb.y1].map(v => +v.toFixed(1)); const o = JSON.parse(b0);
+    for (const k in bb) bb[k] = k[1] === '0' ? Math.min(bb[k], o[k]) : Math.max(bb[k], o[k]); };
+  const prevExt = { mic: ext.mic, tts: ext.tts };
+  for (const s of Object.keys(STATES)) run(s === 'thinking' ? 9 : 4.5, () => { ext.mic = 1; ext.tts = 1; setState(s); }, s);
+  ext.mic = prevExt.mic; ext.tts = prevExt.tts;
+  for (const r of REACTION_NAMES) run(REACTIONS[r].d + 0.5, () => { setState('idle'); triggerReaction(liveReactions, r, clock); }, r);
+  setState(save.state); rot.held = false;
+  for (const k in bb) bb[k] = +bb[k].toFixed(2);
+  bb.per = per; return bb;
+}
+window.__avatar = {
+  setBase(s) { ext.base = s; if (!((state === 'interrupted' || state === 'ignored') && (s === 'idle' || s === 'listening'))) setState(s); },
+  feed(m, a) { ext.mic = m; ext.tts = a; },
+  setCar(b) { if (car !== !!b) { car = !!b; setState(state); } },
+  look(x, y) { gaze.tx = x; gaze.ty = y; gaze.last = clock; bump(); },
+  dragStart() { rot.held = true; rot.vy = 0; rot.touch = clock; bump(); },
+  drag(dx, dy) { rot.yaw += dx * Math.PI; rot.pitch = clamp(rot.pitch + dy * Math.PI * 0.5, -PITCH_MAX, PITCH_MAX); rot.touch = clock; bump(); },
+  dragEnd(vx) { rot.held = false; rot.vy = clamp(vx * Math.PI, -12, 12); rot.touch = clock; bump(); },
+  poke() { poke(); },
+  pause(p) { const was = ext.paused; ext.paused = !!p; if (was && !p) { last = performance.now(); requestAnimationFrame(loop); } },
+  setState, setEmotion, setGlow: v => { glowMode = v; syncDisplayChips(); }, noAuto: () => {}, triggerReaction: n => { bump(); triggerReaction(liveReactions, n, clock); }, runExport, items: N,
+  setFrameRate(n) { fpsCap = n > 0 ? clamp(Math.round(n), 1, 120) : 0; bump(); },
+  frameRate: () => fpsCap || autoFps(),
+  setReducedMotion(b) { reducedApi = b === null || b === undefined ? null : !!b; },
+  stats: () => ({ calls: renderer.info.render.calls, triangles: renderer.info.render.triangles, instances: vox.count, pool: N, shell: NSHELL, body: NBODY, theme: TH.name, small, fps: fpsCap || autoFps(true), fpsNow: fpsCap || autoFps(), state }),
+  debug: { // render-sheet helpers: hold a view angle, freeze blinks, hairline variant, bounds sweep
+    view(yawDeg, pitchDeg) { rot.held = true; rot.vy = 0; rot.yaw = yawDeg * Math.PI / 180; rot.pitch = (pitchDeg || 0) * Math.PI / 180; rot.touch = clock; },
+    release() { rot.held = false; rot.touch = -1e9; },
+    blink(on) { blink.off = !on; },
+    hairline(on) { hairlineOn = !!on; },
+    glint(atMs) { glint.next = clock + (atMs || 0) / 1000; }, // [light] schedule the idle glint (render sheets)
+    bounds: measureBounds,
+    // zoom the camera onto a region (rig space, world units): crop(cx, cy, halfHeight); crop(null) restores the fit
+    crop(cx, cy, hh) { cropView = cx === null || cx === undefined ? null : { cx, cy, hh }; resize(); },
+    // headless frame-time proxy: n frames of liveStep + render (+ gl.finish), ms percentiles
+    perf(n) { n = n || 240; const cpu = [], tot = [], gl = renderer.getContext();
+      for (let f = 0; f < n; f++) { const t0 = performance.now(); clock += 1 / 60; liveStep(1 / 60); const t1 = performance.now(); render(); gl.finish(); const t2 = performance.now(); cpu.push(t1 - t0); tot.push(t2 - t0); }
+      const pc = (a, q) => { const b = a.slice().sort((x, y) => x - y); return +b[Math.min(b.length - 1, Math.floor(q * b.length))].toFixed(2); };
+      return { frames: n, stepP50: pc(cpu, 0.5), stepP95: pc(cpu, 0.95), frameP50: pc(tot, 0.5), frameP95: pc(tot, 0.95), instances: vox.count, calls: renderer.info.render.calls }; },
+    dump: () => items.filter(it => it.k === K.RIB || it.k === K.TIE).map(it => [it.idx, it.q, +it.size.toFixed(2), +it.vis.toFixed(2)]).concat([ribL.map(v => v.toArray().map(a => +a.toFixed(2)))])
+  }
+};
+(function check(n) { const r = canvas.getBoundingClientRect();
+  if (r.width > 0 && r.height > 0 && innerHeight > 0) bridge.ready();
+  else if (n > 0) setTimeout(() => check(n - 1), 100); })(25);
+</script>
+</body>
+</html>

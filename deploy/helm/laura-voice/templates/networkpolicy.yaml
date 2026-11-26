@@ -1,0 +1,68 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- $name := include "lv.name" . }}
+{{- $gw := dict "root" . "component" "gateway" }}
+{{- if .Values.llm.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-llm
+  labels: {{- include "lv.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "lv.selector" (dict "root" . "component" "llm") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {{- include "lv.selector" $gw | nindent 14 }}
+        {{- with .Values.llm.allowedNamespaces }}
+        - namespaceSelector:
+            matchExpressions:
+              - { key: kubernetes.io/metadata.name, operator: In, values: {{ toJson . }} }
+        {{- end }}
+      ports:
+        - { port: {{ .Values.llm.port }} }
+---
+{{- end }}
+{{- if .Values.tts.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-tts
+  labels: {{- include "lv.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "lv.selector" (dict "root" . "component" "tts") | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {{- include "lv.selector" $gw | nindent 14 }}
+      ports:
+        - { port: {{ .Values.tts.port }} }
+---
+{{- end }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-gateway
+  labels: {{- include "lv.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "lv.selector" $gw | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    {{- if .Values.deviceEndpoint.enabled }}
+    # Devices (any source; TLS + access key).
+    - ports:
+        - { port: {{ .Values.deviceEndpoint.hostPort }} }
+    {{- end }}
+    {{- if .Values.gateway.allowedNamespaces }}
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - { key: kubernetes.io/metadata.name, operator: In, values: {{ toJson .Values.gateway.allowedNamespaces }} }
+      ports:
+        - { port: {{ .Values.gateway.port }} }
+    {{- end }}
+{{- end }}
