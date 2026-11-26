@@ -1,10 +1,12 @@
 # laura-voice
 
-A private, always-on voice assistant that runs on my own hardware: streaming speech recognition, speaker
+A private, self-hosted, bilingual (Korean/English) voice assistant that runs on my own hardware: streaming speech recognition, speaker
 verification, a local 9B language model and speech synthesis share one 8 GB laptop GPU in a home Kubernetes cluster,
 with Android phone, watch and floating-overlay clients. Live conversation stays local and around a second;
 anything that needs tools is handed to my personal agent ([Hermes Agent](https://github.com/NousResearch/hermes-agent))
 and comes back as a spoken result.
+
+How her 3D avatar was designed by a council of AI agents (LLM-as-judge critics and coding agents): [I'm not a designer, so I ran an AI design council](https://hect.dev/writing/ai-design-council-avatar). The small CPU voice is on Hugging Face: [hectorandac/laura-tts-small](https://huggingface.co/hectorandac/laura-tts-small).
 
 <p align="center">
   <img src="docs/images/avatar-states.png" alt="The voxel avatar in its idle, listening, thinking, speaking, sleeping, error, offline and not-owner states" width="820">
